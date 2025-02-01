@@ -1,32 +1,36 @@
-{
-    "author": {
-        "email": "Qriist+apiQache@gmail.com",
-        "name": "Qriist",
-        "website": ""
-    },
-    "dependencies": {
-        "Qriist/LibQurl": "^0.0.0"
-    },
-    "description": "An API caching library designed to automatically retain and serve non-expired local copies of outgoing requests.",
-    "keywords": [
-        "api",
-        "cache",
-        "database",
-	"SQL",
-	"SQLite",
-        "upload",
-	"internet",
-	"transfers",
-        "curl",
-        "libcurl",
-        "LibQurl"
-    ],
-    "license": "",
-    "main": "apiQache.ahk",
-    "name": "Qriist/apiQache",
-    "repository": {
-        "type": "github",
-        "url": "Qriist/LibQurl"
-    },
-    "version": "0.8.0"
+﻿{
+	"author": {
+		"email": "Qriist+apiQache@gmail.com",
+		"name": "Qriist",
+		"website": ""
+	},
+	"bugs": {
+		"url": "https://github.com/Qriist/apiQache/issues"
+	},
+	"dependencies": {
+		"Qriist/LibQurl": "^0.0.0",
+		"Qriist/SQriLiteDB": "github:Qriist/SQriLiteDB@^v0.80.0 --main SQriLiteDB.ahk"
+	},
+	"description": "An API caching library designed to automatically retain and serve non-expired local copies of outgoing requests.",
+	"keywords": [
+		"api",
+		"cache",
+		"database",
+		"SQL",
+		"SQLite",
+		"upload",
+		"internet",
+		"transfers",
+		"curl",
+		"libcurl",
+		"LibQurl"
+	],
+	"license": "",
+	"main": "apiQache.ahk",
+	"name": "Qriist/apiQache",
+	"repository": {
+		"type": "github",
+		"url": "Qriist/LibQurl"
+	},
+	"version": "0.8.0"
 }
