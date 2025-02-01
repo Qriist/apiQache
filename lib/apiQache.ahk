@@ -2,39 +2,46 @@
 ;#Include <LibCrypt>
 ; #Include %A_MyDocuments%\Autohotkey\Lib\v2\class_SQriLiteDB_modified.ahk
 ;#Include %A_MyDocuments%\Autohotkey\Lib\v2\Winhttp.ahk
-#Include %A_MyDocuments%\Autohotkey\Lib\v2\WinhttpRequest.ahk
 ;#Include <string_things>
 class apiQache { 
 
-	__New(optObj,&curl?){
-		acDB := ""	;api cache DB
-		acDir := ""	;api cache dir, used only for bulk downloads
-		uncDB := ""
-		acExpiry := 518400	;api cache expiry
+	__New(optObj := Map()){
+		this.acDB := ""	;api cache DB
+		this.acDir := ""	;api cache dir, used only for bulk downloads
+		this.uncDB := ""
+		this.acExpiry := 518400	;api cache expiry
 								;how many seconds to wait before burning api call for fresh file
 								;default = 518400 (6 days)
-		web := WinHttpRequest()
-		outHeadersText := ""
-		outHeadersMap := Map()
-		preparedOutHeadersText := ""
-		lastResponseHeaders := ""
-		WinHttpRequest_encoding := "UTF-8"
-		WinHttpRequest_windowsCache := "Cache-Control: no-cache"
-		openTransaction := 0
-		lastServedSource := "nothing"	;holds the string "server" if the class burned api, or "cache" otherwise.
-		bulkRetObj := []
-		preparedSQL := Map()
-		compiledSQL := Map()
-		this.init(optObj,&curl)
+		; this.web := WinHttpRequest()
+		this.outHeadersText := ""
+		this.outHeadersMap := Map()
+		this.preparedOutHeadersText := ""
+		this.lastResponseHeaders := ""
+		this.WinHttpRequest_encoding := "UTF-8"
+		this.openTransaction := 0
+		this.lastServedSource := "nothing"	;holds the string "server" if the class burned api, or "cache" otherwise.
+		this.bulkRetObj := []
+		this.preparedSQL := Map()
+		this.compiledSQL := Map()
+
+		;This instance will connect to any instance the main script has
+		;If you need to set the DLL or SSL then init LibQurl class prior to apiQache
+		this.curl :=  LibQurl()
+
+		;silos the apiQache connections into its own pool
+		this.multi_handle := this.curl.MultiInit()
+		this.easy_handle := this.curl.EasyInit()
+
+		this.init(optObj)
 	}
 
-	init(optObj,&curl?){
+	init(optObj,&web?){
+			
 		; if (Type(curl) != "LibQurl")
 		; 	curl := LibQurl(optObj["dllpat1h"])
-		; msgbox curl.PrintObj(curl.easyHandleMap)
+		; msgbox this.web.PrintObj(this.web.easyHandleMap)
 		; msgbox curl.GetVersionInfo()["brotli_ver_num"]
 		; msgbox Type(curl)
-		curl := LibQurl()
 		; this.initDir(optObj["pathToDir"])
 		; this.initDB(optObj["pathToDB"])
 		; this.initPreparedStatements()

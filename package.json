@@ -8,8 +8,10 @@
 		"url": "https://github.com/Qriist/apiQache/issues"
 	},
 	"dependencies": {
-		"Qriist/LibQurl": "^0.0.0",
-		"Qriist/SQriLiteDB": "github:Qriist/SQriLiteDB@^v0.80.0 --main SQriLiteDB.ahk"
+		"G33kDude/cJson": "^2.1.0",
+		"Qriist/LibQurl": "^v0.91.0",
+		"Qriist/SQriLiteDB": "github:Qriist/SQriLiteDB@^v0.80.0 --main SQriLiteDB.ahk",
+		"SKAN/RunCMD": "9a8392d"
 	},
 	"description": "An API caching library designed to automatically retain and serve non-expired local copies of outgoing requests.",
 	"keywords": [

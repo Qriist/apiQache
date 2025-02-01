@@ -1,17 +1,18 @@
 ﻿#Include <Aris/packages>
 #Include %a_scriptdir%/lib/apiQache.ahk
-dllpath := A_ScriptDir "\lib\Aris\Qriist\LibQurl@v0.90.0\bin\libcurl.dll"
 
-curl := ""
+; curl := ""
+; testqurl := LibQurl(,"SCHANNEL")
 ; curl := LibQurl()
 ; msgbox
-optObj := Map()
+; optObj := Map()
 ; optObj["dllpath"] := dllpath
-
-api := apiQache(optObj,&curl)
-curl.SetOpt("URL","https://www.google.com")
-curl.sync()
-msgbox curl.GetLastBody()
+api := apiQache()
+msgbox api.curl.PrintObj(api.curl.GetVersionInfo())
+; msgbox api.web.PrintObj(api.web.GetVersionInfo())
+; curl.SetOpt("URL","https://www.google.com")
+; curl.sync()
+; msgbox A_Clipboard := curl.GetLastHeaders() ;curl.GetLastBody()
 ; api.init(A_ScriptDir,A_ScriptDir "\test.db")
 ; msgbox api.retrieve("https://www.google.com")
 ExitApp
