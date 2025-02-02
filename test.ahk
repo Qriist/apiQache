@@ -1,14 +1,17 @@
-﻿#Include <Aris/packages>
+﻿#Requires AutoHotkey v2.0 
+#Include <Aris/packages>
 #Include %a_scriptdir%/lib/apiQache.ahk
 
 ; curl := ""
 ; testqurl := LibQurl(,"SCHANNEL")
-; curl := LibQurl()
+curl := LibQurl()
 ; msgbox
-; optObj := Map()
-; optObj["dllpath"] := dllpath
-api := apiQache()
-msgbox api.curl.PrintObj(api.curl.GetVersionInfo())
+optObj := Map()
+optObj["pathToDB"] := A_ScriptDir "\test.db"
+
+api := apiQache(optObj)
+
+msgbox api.retrieve("https://www.google.com")
 ; msgbox api.web.PrintObj(api.web.GetVersionInfo())
 ; curl.SetOpt("URL","https://www.google.com")
 ; curl.sync()

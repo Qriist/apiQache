@@ -6,7 +6,7 @@
 class apiQache { 
 
 	__New(optObj := Map()){
-		this.acDB := ""	;api cache DB
+		; this.acDB := ""	;api cache DB
 		this.acDir := ""	;api cache dir, used only for bulk downloads
 		this.uncDB := ""
 		this.acExpiry := 518400	;api cache expiry
@@ -25,8 +25,8 @@ class apiQache {
 		this.compiledSQL := Map()
 
 		;This instance will connect to any instance the main script has
-		;If you need to set the DLL or SSL then init LibQurl class prior to apiQache
-		this.curl :=  LibQurl()
+		;If you need to set the DLL or SSL then init the LibQurl class prior to apiQache
+		this.curl := LibQurl()
 
 		;silos the apiQache connections into its own pool
 		this.multi_handle := this.curl.MultiInit()
@@ -43,8 +43,8 @@ class apiQache {
 		; msgbox curl.GetVersionInfo()["brotli_ver_num"]
 		; msgbox Type(curl)
 		; this.initDir(optObj["pathToDir"])
-		; this.initDB(optObj["pathToDB"])
-		; this.initPreparedStatements()
+		this.initDB(optObj["pathToDB"])
+		this.initPreparedStatements()
 		return
 	}
 	initDir(pathToDir){	;don't need anymore?
@@ -151,7 +151,7 @@ class apiQache {
 			.	"headers = excluded.headers,"
 			.	"post = excluded.post,"
 			.	"mime = excluded.mime,"
-			.	"request = excluded.request"
+			.	"request = excluded.request,"
 			.	"responseHeaders = excluded.responseHeaders,"
 			.	"responseHeadersSz = excluded.responseHeadersSz,"
 			.	"data = excluded.data,"
@@ -231,7 +231,10 @@ class apiQache {
 		
 		;msgbox outHeadersMap["Accept-Encoding"]
 		; req := this.acWeb.request(url,(!IsSet(post)?'GET':'POST'),post?,outHeadersMap)
-		response := this.web.request(url)
+		this.curl.SetOpt("URL",url,this.easy_handle)
+		this.curl.Sync(this.easy_handle)
+		response := this.curl.GetLastBody(,this.easy_handle)
+
 		; req := this.web.openRequest("GET",url,this.WinHttpRequest_encoding)    ;uses nested Request class
 		; for k,v in this.outHeadersMap {
 		; 	req.setRequestHeader(k,v)
@@ -239,7 +242,7 @@ class apiQache {
 		; req.setRequestHeader("Accept-Encoding","gzip, deflate")
 		; req.send()
 		
-		this.lastResponseHeaders := this.web.getAllResponseHeaders()
+		this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
 		; quotedResponseText := this.sqlQuote(web.responseText)
 		; quotedResponseHeaders := this.sqlQuote(this.lastResponseHeaders)
 
@@ -251,15 +254,16 @@ class apiQache {
 				,	5,Map((this.preparedOutHeadersText=""?"NULL":"Text"),(this.preparedOutHeadersText=""?"NULL":this.preparedOutHeadersText))	;headers
 				,	6,Map("NULL","")	;post
 				,	7,Map("NULL","")	;mime
-				,	8,Map("Text",this.lastResponseHeaders)	;responseHeaders
-				,	9,Map("Text",response))	;data
+				,	8,Map("NULL","")	;mime
+				,	9,Map("Text",this.lastResponseHeaders)	;responseHeaders
+				,	10,Map("Text",response))	;data
 		
 		this.compiledSQL["retrieve/server"].Bind(insMap)
 		this.compiledSQL["retrieve/server"].Step()
 		this.compiledSQL["retrieve/server"].Reset()
 		this.lastServedSource := "server"
 
-		return response
+		return response := this.curl.GetLastBody(,this.easy_handle)
 
 
 /*
