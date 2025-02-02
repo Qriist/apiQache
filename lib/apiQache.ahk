@@ -171,13 +171,21 @@ class apiQache {
 			this.compiledSQL[k] := st
 		}
 	}
-	setHeaders(headersMap := Map()){
+	setHeaders(headersMap?){
+		if !IsSet(headersMap)
+			return this.outHeadersText := ""
 		this.outHeadersMap := headersMap
+		this.curl.SetHeaders(headersMap,this.easy_handle)
 		this.outHeadersText := ""
 		for k,v in headersMap {
 			this.outHeadersText .= k ": " v "`n"
 		}
-		this.preparedOutHeadersText := this.sqlQuote(this.outHeadersText)
+	}
+	setRequest(requestString?){
+		if !IsSet(requestString) || (requestString = "GET")
+			return this.outRequestString := ""
+		this.curl.SetOpt("CUSTOMREQUEST",requestString,this.easy_handle)
+		this.outRequestString := requestString
 	}
 	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?){
 		table := ""
@@ -195,11 +203,14 @@ class apiQache {
 				?-if file doesn't exist (which it should) -> burn api
 		*/
 		; msgbox  url
+		this.setHeaders(headers?)
+		this.setRequest(request?)
 		
 		fingerprint := this.generateFingerprint(url
 			,	(this.outHeadersText=""?unset:this.outHeadersText)
-			,	(!IsSet(post)?unset:post))
-
+			,	unset ;post (!IsSet(post)?unset:post))
+			,	unset ;mime (this.outHeadersText=""?unset:this.outHeadersText)
+			,	(this.outRequestString=""?unset:this.outRequestString))
 		timestamp := expiry_timestamp := A_NowUTC	;makes the timestamp consistent across the method
 		expiry_timestamp := DateAdd(expiry_timestamp, expiry, "seconds")
 		;msgbox timestamp "`n" expiry_timestamp
@@ -237,10 +248,10 @@ class apiQache {
 				,	2,Map("Int64",timestamp)	;timestamp
 				,	3,Map("Int64",expiry_timestamp)	;expiry
 				,	4,Map("Text",url)	;url
-				,	5,Map((this.preparedOutHeadersText=""?"NULL":"Text"),(this.preparedOutHeadersText=""?"NULL":this.preparedOutHeadersText))	;headers
+				,	5,Map((this.outHeadersText=""?"NULL":"Text"),(this.outHeadersText=""?"NULL":this.hashComponents["headers"]))	;headers
 				,	6,Map("NULL","")	;post
 				,	7,Map("NULL","")	;mime
-				,	8,Map("NULL","")	;request
+				,	8,Map((this.outRequestString=""?"NULL":"Text"),(this.outRequestString=""?"NULL":this.hashComponents["request"]))	;request
 				,	9,Map("Text",this.lastResponseHeaders)	;responseHeaders
 				,	10,Map("Text",response))	;data
 		
@@ -417,11 +428,22 @@ class apiQache {
 	generateFingerprint(url, headers?, post?, mime?, request?){
 		;returns a concatonated hash of the outgoing url+headers+post
 		;fingerprint is 128/256/384 characters, depending on if headers and/or post is unset
-		return this.hash(&url,"SHA512") 
-			.	(!IsSetRef(&headers)?"":"h" this.hash(&headers,"SHA512")) 
-			; .	(!IsSetRef(&post)?"":"p" this.hash(&post,"SHA512")
-			; .	(!IsSetRef(&mime)?"":"m" this.hash(&mime,"SHA512")
-			.	(!IsSetRef(&request)?"":"r" this.hash(&request,"SHA512")) 
+		this.hashComponents := Map()
+		this.hashComponents["url"] := u := this.hash(&url,"SHA512")
+		If IsSetRef(&headers)
+			this.hashComponents["headers"] := h := this.hash(&headers,"SHA512")
+		; IsSetRef(&post)
+			; this.hashComponents["post"] := p := 
+		; IsSetRef(&mime)
+			; this.hashComponents["mime"] := m := 
+		If IsSetRef(&request)
+			this.hashComponents["request"] := r := this.hash(&request,"SHA512")
+		msgbox r
+		return u
+			.	(!IsSet(h)?"":"h" h)
+			.	(!IsSet(p)?"":"p" p)
+			.	(!IsSet(m)?"":"m" m)
+			.	(!IsSet(r)?"":"r" r)
 	}
 	sqlQuote(input){
 		return "'" (!InStr(input,"'")?input:StrReplace(input,"'","''")) "'"
