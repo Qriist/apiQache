@@ -179,8 +179,7 @@ class apiQache {
 		}
 		this.preparedOutHeadersText := this.sqlQuote(this.outHeadersText)
 	}
-	retrieve(url, post?, outHeadersMap := Map(), &options := "", expiry?, forceBurn?){
-		sql := ""
+	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?){
 		table := ""
 		chkCache := ""
 		if !IsSet(expiry)
@@ -200,10 +199,6 @@ class apiQache {
 		fingerprint := this.generateFingerprint(url
 			,	(this.outHeadersText=""?unset:this.outHeadersText)
 			,	(!IsSet(post)?unset:post))
-		;,responseHeaders := headers	;WinHttpRequest will overwrite the ByRef Headers var otherwise
-			;,SHA512_url := LC_SHA512(url)
-			;,SHA512_headers := LC_SHA512(headers)
-			;,fingerprint := SHA512_url SHA512_headers
 
 		timestamp := expiry_timestamp := A_NowUTC	;makes the timestamp consistent across the method
 		expiry_timestamp := DateAdd(expiry_timestamp, expiry, "seconds")
@@ -235,16 +230,7 @@ class apiQache {
 		this.curl.Sync(this.easy_handle)
 		response := this.curl.GetLastBody(,this.easy_handle)
 
-		; req := this.web.openRequest("GET",url,this.WinHttpRequest_encoding)    ;uses nested Request class
-		; for k,v in this.outHeadersMap {
-		; 	req.setRequestHeader(k,v)
-		; }
-		; req.setRequestHeader("Accept-Encoding","gzip, deflate")
-		; req.send()
-		
 		this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
-		; quotedResponseText := this.sqlQuote(web.responseText)
-		; quotedResponseHeaders := this.sqlQuote(this.lastResponseHeaders)
 
 		;Types := {Blob: 1, Double: 1, Int: 1, Int64: 1, Null: 1, Text: 1}
 		insMap := Map(1,Map("Text",fingerprint)	;fingerprint
@@ -254,7 +240,7 @@ class apiQache {
 				,	5,Map((this.preparedOutHeadersText=""?"NULL":"Text"),(this.preparedOutHeadersText=""?"NULL":this.preparedOutHeadersText))	;headers
 				,	6,Map("NULL","")	;post
 				,	7,Map("NULL","")	;mime
-				,	8,Map("NULL","")	;mime
+				,	8,Map("NULL","")	;request
 				,	9,Map("Text",this.lastResponseHeaders)	;responseHeaders
 				,	10,Map("Text",response))	;data
 		
@@ -264,75 +250,6 @@ class apiQache {
 		this.lastServedSource := "server"
 
 		return response := this.curl.GetLastBody(,this.easy_handle)
-
-
-/*
-		quotedResponseText := this.sqlQuote(req.responseText)
-		quotedResponseHeaders := this.sqlQuote(this.lastResponseHeaders)
-		insMap := Map()
-		insMap["url"] := "'" url "'"
-		insMap["headers"] := this.outHeadersText
-		insMap["responseHeaders"] := "sqlar_compress(CAST(" quotedResponseHeaders " AS BLOB))"	
-		insMap["responseHeadersSz"] := "length(CAST(" quotedResponseHeaders " AS BLOB))"
-			;,"responseHeadersSz":StrPut(responseHeaders, "UTF-8")
-		insMap["fingerprint"] := "'" fingerprint "'"
-		insMap["timestamp"] := timestamp
-		insMap["expiry"] := expiry_timestamp
-		insMap["mode"] := "777"
-		insMap["dataSz"] := "length(CAST(" quotedResponseText " AS BLOB))"
-			;,"dataSz":StrPut(post, "UTF-8")
-		insMap["data"] := "sqlar_compress(CAST(" quotedResponseText " AS BLOB))"
-
-		SQL := "INSERT OR IGNORE INTO simpleCacheTable (data,dataSz,expiry,fingerprint,headers,mode,responseHeaders,responseHeadersSz,timestamp,url) VALUES ("
-			.	insMap["data"] ",`n"
-			.	insMap["dataSz"] ",`n"
-			.	insMap["expiry"] ",`n"
-			.	insMap["fingerprint"] ",`n"
-			.	(insMap["headers"]=""?"NULL":insMap["headers"]) ",`n"
-			.	insMap["mode"] ",`n"
-			.	insMap["responseHeaders"] ",`n"
-			.	insMap["responseHeadersSz"] ",`n"
-			.	insMap["timestamp"] ",`n"
-			.	insMap["url"] 
-			.	") ON CONFLICT ( fingerprint ) "
-			.	"DO UPDATE SET "
-			.	"data = excluded.data,"
-			.	"dataSz = excluded.dataSz,"
-			.	"expiry = excluded.expiry,"
-			.	"headers = excluded.headers,"
-			.	"mode = excluded.mode,"
-			.	"responseHeaders = excluded.responseHeaders,"
-			.	"responseHeadersSz = excluded.responseHeadersSz,"
-			.	"timestamp = excluded.timestamp,"
-			.	"url = excluded.url;"
-		; msgbox a_clipboard := sql
-		; return req.responseText
-
-
-		if (this.openTransaction = 0)
-			this.acDB.exec("BEGIN TRANSACTION;")
-		;msgbox % clipboard := sql
-		if !this.acDB.exec(sql)
-			msgbox a_clipboard := "--insObj failure`n" sql
-		if (this.openTransaction = 0)				
-			If !this.acDB.exec("COMMIT;")
-				msgbox "commit failure"
-		this.lastServedSource := "server"
-
-		;StrPut(gibberish, buf := Buffer(StrPut(aa)))
-		;MsgBox(StrGet(req.responseBody, "CP0"))
-		;msgbox req.responseBody
-		return req.responseText
-		
-
-		; ;don't think I need this fetch after the insertion? keeping for now
-		; SQL := "SELECT sqlar_uncompress(data,size) AS data FROM vRecords WHERE fingerprint = '" fingerprint "';"
-		
-		; this.acDB.getTable(sql,table)
-		; table.NextNamed(chkCache)
-		
-		; return chkCache["data"]	;returns previously cached data
-		*/
 	}
 	/*	bulk insert stuff
 			
@@ -497,12 +414,14 @@ class apiQache {
 	; findAndFetchRecords(){	;find and fetch records in one step
 	; 	;TODO
 	; }
-	generateFingerprint(url,headers?,post?){
+	generateFingerprint(url, headers?, post?, mime?, request?){
 		;returns a concatonated hash of the outgoing url+headers+post
 		;fingerprint is 128/256/384 characters, depending on if headers and/or post is unset
 		return this.hash(&url,"SHA512") 
-			.	(!IsSetRef(&headers)?"":this.hash(&headers,"SHA512")) 
-			.	(!IsSetRef(&post)?"":this.hash(&post,"SHA512")) 
+			.	(!IsSetRef(&headers)?"":"h" this.hash(&headers,"SHA512")) 
+			; .	(!IsSetRef(&post)?"":"p" this.hash(&post,"SHA512")
+			; .	(!IsSetRef(&mime)?"":"m" this.hash(&mime,"SHA512")
+			.	(!IsSetRef(&request)?"":"r" this.hash(&request,"SHA512")) 
 	}
 	sqlQuote(input){
 		return "'" (!InStr(input,"'")?input:StrReplace(input,"'","''")) "'"
