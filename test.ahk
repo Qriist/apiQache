@@ -11,7 +11,7 @@ optObj["pathToDB"] := A_ScriptDir "\test.db"
 
 api := apiQache(optObj)
 headers := Map("test","cake")
-msgbox api.retrieve("https://www.google.com",headers,,,"PATCH")
+msgbox api.retrieve("https://www.google.com",headers,,,"GET")
 ; msgbox api.web.PrintObj(api.web.GetVersionInfo())
 ; curl.SetOpt("URL","https://www.google.com")
 ; curl.sync()

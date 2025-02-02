@@ -438,7 +438,6 @@ class apiQache {
 			; this.hashComponents["mime"] := m := 
 		If IsSetRef(&request)
 			this.hashComponents["request"] := r := this.hash(&request,"SHA512")
-		msgbox r
 		return u
 			.	(!IsSet(h)?"":"h" h)
 			.	(!IsSet(p)?"":"p" p)
