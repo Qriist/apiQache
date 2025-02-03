@@ -9,9 +9,15 @@ curl := LibQurl()
 optObj := Map()
 optObj["pathToDB"] := A_ScriptDir "\test.db"
 
+
 api := apiQache(optObj)
 headers := Map("test","cake")
-msgbox api.retrieve("https://www.google.com",headers,,,"GET")
+
+
+; msgbox api.generateFingerprint("1",,&p := "post")
+; ExitApp
+api.retrieve("https://www.google.com",,"test")
+api.retrieve("https://www.google.com",,"test",,"PATCH")
 ; msgbox api.web.PrintObj(api.web.GetVersionInfo())
 ; curl.SetOpt("URL","https://www.google.com")
 ; curl.sync()

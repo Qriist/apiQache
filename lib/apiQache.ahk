@@ -187,6 +187,13 @@ class apiQache {
 		this.curl.SetOpt("CUSTOMREQUEST",requestString,this.easy_handle)
 		this.outRequestString := requestString
 	}
+	setPost(post?){
+		If !IsSet(post)
+			return this.outPostHash := ""
+		;use curl to prepare the post data into a buffer
+		this.curl.SetPost(post,this.easy_handle)
+		this.outPostHash := this.hash(&p := this.curl.easyHandleMap[this.easy_handle]["postData"],"SHA512")
+	}
 	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?){
 		table := ""
 		chkCache := ""
@@ -205,10 +212,11 @@ class apiQache {
 		; msgbox  url
 		this.setHeaders(headers?)
 		this.setRequest(request?)
-		
+		this.setPost(post?)
+
 		fingerprint := this.generateFingerprint(url
 			,	(this.outHeadersText=""?unset:this.outHeadersText)
-			,	unset ;post (!IsSet(post)?unset:post))
+			,	(this.outPostHash=""?unset:this.outPostHash)
 			,	unset ;mime (this.outHeadersText=""?unset:this.outHeadersText)
 			,	(this.outRequestString=""?unset:this.outRequestString))
 		timestamp := expiry_timestamp := A_NowUTC	;makes the timestamp consistent across the method
@@ -249,7 +257,7 @@ class apiQache {
 				,	3,Map("Int64",expiry_timestamp)	;expiry
 				,	4,Map("Text",url)	;url
 				,	5,Map((this.outHeadersText=""?"NULL":"Text"),(this.outHeadersText=""?"NULL":this.hashComponents["headers"]))	;headers
-				,	6,Map("NULL","")	;post
+				,	6,Map((this.outPostHash=""?"NULL":"Text"),(this.outPostHash=""?"NULL":this.hashComponents["post"]))	;post
 				,	7,Map("NULL","")	;mime
 				,	8,Map((this.outRequestString=""?"NULL":"Text"),(this.outRequestString=""?"NULL":this.hashComponents["request"]))	;request
 				,	9,Map("Text",this.lastResponseHeaders)	;responseHeaders
@@ -426,18 +434,20 @@ class apiQache {
 	; 	;TODO
 	; }
 	generateFingerprint(url, headers?, post?, mime?, request?){
-		;returns a concatonated hash of the outgoing url+headers+post
-		;fingerprint is 128/256/384 characters, depending on if headers and/or post is unset
+		;returns a concatonated hash of the outgoing url+headers+post+mime+request
+		;fingerprint character length varies based on the # of set parameters
+		
 		this.hashComponents := Map()
 		this.hashComponents["url"] := u := this.hash(&url,"SHA512")
 		If IsSetRef(&headers)
 			this.hashComponents["headers"] := h := this.hash(&headers,"SHA512")
-		; IsSetRef(&post)
-			; this.hashComponents["post"] := p := 
+		If IsSetRef(&post) || IsSet(post)
+			this.hashComponents["post"] := p := this.hash(&post,"SHA512")
 		; IsSetRef(&mime)
 			; this.hashComponents["mime"] := m := 
 		If IsSetRef(&request)
 			this.hashComponents["request"] := r := this.hash(&request,"SHA512")
+
 		return u
 			.	(!IsSet(h)?"":"h" h)
 			.	(!IsSet(p)?"":"p" p)
