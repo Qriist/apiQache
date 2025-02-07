@@ -106,6 +106,14 @@ class apiQache {
 		
 		ret := "
 		(
+		CREATE INDEX fingerprint ON apiCache (
+    		fingerprint ASC
+		`);
+		)"
+		retObj.Push(ret)
+
+		ret := "
+		(
 		CREATE VIEW vRecords AS
 			SELECT fingerprint,
 				timestamp,
@@ -216,9 +224,10 @@ class apiQache {
 
 		fingerprint := this.generateFingerprint(url
 			,	(this.outHeadersText=""?unset:this.outHeadersText)
-			,	(this.outPostHash=""?unset:this.outPostHash)
+			,	(!IsSet(post)?unset:post)
 			,	unset ;mime (this.outHeadersText=""?unset:this.outHeadersText)
-			,	(this.outRequestString=""?unset:this.outRequestString))
+			,	(this.outRequestString=""?unset:this.outRequestString)
+			,	1)
 		timestamp := expiry_timestamp := A_NowUTC	;makes the timestamp consistent across the method
 		expiry_timestamp := DateAdd(expiry_timestamp, expiry, "seconds")
 		;msgbox timestamp "`n" expiry_timestamp
@@ -433,20 +442,43 @@ class apiQache {
 	; findAndFetchRecords(){	;find and fetch records in one step
 	; 	;TODO
 	; }
-	generateFingerprint(url, headers?, post?, mime?, request?){
+	generateFingerprint(url, headers?, post?, mime?, request?, internal?){
 		;returns a concatonated hash of the outgoing url+headers+post+mime+request
 		;fingerprint character length varies based on the # of set parameters
 		
-		this.hashComponents := Map()
-		this.hashComponents["url"] := u := this.hash(&url,"SHA512")
+		hashComponents := Map()
+		hashComponents["url"] := u := this.hash(&url,"SHA512")
+
+		;todo - implement type detection
 		If IsSetRef(&headers)
-			this.hashComponents["headers"] := h := this.hash(&headers,"SHA512")
-		If IsSetRef(&post) || IsSet(post)
-			this.hashComponents["post"] := p := this.hash(&post,"SHA512")
+			hashComponents["headers"] := h := this.hash(&headers,"SHA512")
+		; switch Type(post) {
+		; 	case :
+				
+		; 	default:
+				
+		; }
+		if IsSetRef(&post) {
+			If IsSet(internal)
+				hashComponents["post"] := p := this.curl.easyHandleMap[this.easy_handle]["postData"]
+			else
+				hashComponents["post"] := p := this.hash(&post,"SHA512")
+		}
+
 		; IsSetRef(&mime)
 			; this.hashComponents["mime"] := m := 
+		; switch Type(mime) {
+		; 	case :
+				
+		; 	default:
+				
+		; }
+
 		If IsSetRef(&request)
-			this.hashComponents["request"] := r := this.hash(&request,"SHA512")
+			hashComponents["request"] := r := this.hash(&request,"SHA512")
+
+		If IsSet(internal)
+			this.hashComponents := hashComponents
 
 		return u
 			.	(!IsSet(h)?"":"h" h)
@@ -597,12 +629,12 @@ class apiQache {
 			return !graceful_exit()
 		} Else If (Type(LItem) = "String" && FileExist(LItem)) { ; Determine buffer type.
 			_file := FileOpen(LItem,"r"), LBuf := true, LSize:=(c_size?c_size:d_LSize)
-		} Else If (Type(item) = "String") {
+		} Else If (Type(item) = "String") || (Type(item) = "Integer") {
 			LBuf := Buffer(StrPut(item,"UTF-8")-1,0), LItem:="", LSize:=d_LSize
 			temp_buf := Buffer(LBuf.size+1,0), StrPut(item, temp_buf, "UTF-8"), copy_str()
 		} Else If (Type(item) = "Buffer")
 			LBuf := item, LItem:="", LSize:=d_LSize
-		
+
 		If (LBuf && !(outVal:="")) {
 			hDigest := Buffer(o.%LType%.size) ; Create new digest obj
 			Loop t:=(!_file ? 1 : (_file.Length//LSize)+1)

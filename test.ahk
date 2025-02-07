@@ -2,10 +2,7 @@
 #Include <Aris/packages>
 #Include %a_scriptdir%/lib/apiQache.ahk
 
-; curl := ""
-; testqurl := LibQurl(,"SCHANNEL")
-curl := LibQurl()
-; msgbox
+
 optObj := Map()
 optObj["pathToDB"] := A_ScriptDir "\test.db"
 
@@ -13,11 +10,15 @@ optObj["pathToDB"] := A_ScriptDir "\test.db"
 api := apiQache(optObj)
 headers := Map("test","cake")
 
-
+fileObj := FileOpen(A_ScriptDir "\icuuc76.dll","r")
+fileObj := FileOpen(A_ScriptDir "\icutu76.dll","r")
 ; msgbox api.generateFingerprint("1",,&p := "post")
 ; ExitApp
-api.retrieve("https://www.google.com",,"test")
-api.retrieve("https://www.google.com",,"test",,"PATCH")
+; loop 1
+msgbox api.generateFingerprint("1")
+
+    api.retrieve("https://www.google.com/search?q=" a_index)
+; api.retrieve("https://www.google.com",,"test",,"PATCH")
 ; msgbox api.web.PrintObj(api.web.GetVersionInfo())
 ; curl.SetOpt("URL","https://www.google.com")
 ; curl.sync()
