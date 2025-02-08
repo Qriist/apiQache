@@ -546,7 +546,7 @@ class apiQache {
 		(
 		CREATE TABLE apiCache (
 			fingerprint       TEXT    PRIMARY KEY
-									UNIQUE,
+									  UNIQUE,
 			timestamp         INTEGER,
 			expiry            INTEGER,
 			url               TEXT,
@@ -630,8 +630,8 @@ class apiQache {
 
 		If (!item && !hashType) { ; Free buffers/memory and release objects.
 			return !graceful_exit()
-		} Else If (Type(LItem) = "String" && FileExist(LItem)) { ; Determine buffer type.
-			_file := FileOpen(LItem,"r"), LBuf := true, LSize:=(c_size?c_size:d_LSize)
+		} Else If (Type(LItem) = "File") { ; Determine buffer type.
+			_file := LItem, LBuf := true, LSize:=(c_size?c_size:d_LSize)
 		} Else If (Type(item) = "String") || (Type(item) = "Integer") {
 			LBuf := Buffer(StrPut(item,"UTF-8")-1,0), LItem:="", LSize:=d_LSize
 			temp_buf := Buffer(LBuf.size+1,0), StrPut(item, temp_buf, "UTF-8"), copy_str()
