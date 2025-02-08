@@ -189,8 +189,7 @@
 	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?){
 		table := ""
 		chkCache := ""
-		if !IsSet(expiry)
-			expiry := this.acExpiry
+		expiry ??= this.acExpiry
 		/*
 			-check if url+header (fingerprint) exists in db
 			-if url doesn't exist -> burn api
@@ -201,10 +200,11 @@
 			-if url (fingerprint) AND expiry is good AND fileblob exists -> return fileblob from db
 				?-if file doesn't exist (which it should) -> burn api
 		*/
-		; msgbox  url
+
 		this.setHeaders(headers?)
 		this.setRequest(request?)
 		this.setPost(post?)
+		mime := unset	;ensures mime is disabled until I'm ready for it.
 
 		fingerprint := this.generateFingerprint(url
 			,	(this.outHeadersText=""?unset:this.outHeadersText)
