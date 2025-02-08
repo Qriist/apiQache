@@ -1,9 +1,4 @@
-﻿;#Include <SingleRecordSQL>
-;#Include <LibCrypt>
-; #Include %A_MyDocuments%\Autohotkey\Lib\v2\class_SQriLiteDB_modified.ahk
-;#Include %A_MyDocuments%\Autohotkey\Lib\v2\Winhttp.ahk
-;#Include <string_things>
-class apiQache { 
+﻿class apiQache { 
 
 	__New(optObj := Map()){
 		; this.acDB := ""	;api cache DB
@@ -32,21 +27,10 @@ class apiQache {
 		this.multi_handle := this.curl.MultiInit()
 		this.easy_handle := this.curl.EasyInit()
 
-		this.init(optObj)
-	}
-
-	init(optObj,&web?){
-			
-		; if (Type(curl) != "LibQurl")
-		; 	curl := LibQurl(optObj["dllpat1h"])
-		; msgbox this.web.PrintObj(this.web.easyHandleMap)
-		; msgbox curl.GetVersionInfo()["brotli_ver_num"]
-		; msgbox Type(curl)
-		; this.initDir(optObj["pathToDir"])
 		this.initDB(optObj["pathToDB"])
 		this.initPreparedStatements()
-		return
 	}
+
 	initDir(pathToDir){	;don't need anymore?
 		DirCreate(pathToDir)
 		this.acDir := Trim(pathToDir,"\")
@@ -247,13 +231,7 @@ class apiQache {
 				return chkCache["data"]	;returns previously cached data
 			}
 		}
-		;msgbox fingerprint
 		
-		; WinHttpRequest(url, post, responseHeaders, options this.WinHttpRequest_encoding "`n" WinHttpRequest_windowsCache)
-		;outHeadersMap["Accept-Encoding"] := "br, gzip, deflate, compress"	;add compression headers to request
-		
-		;msgbox outHeadersMap["Accept-Encoding"]
-		; req := this.acWeb.request(url,(!IsSet(post)?'GET':'POST'),post?,outHeadersMap)
 		this.curl.SetOpt("URL",url,this.easy_handle)
 		this.curl.Sync(this.easy_handle)
 		response := this.curl.GetLastBody(,this.easy_handle)

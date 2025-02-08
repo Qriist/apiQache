@@ -10,18 +10,17 @@ optObj["pathToDB"] := A_ScriptDir "\test.db"
 api := apiQache(optObj)
 
 testFile := FileOpen(A_ScriptDir "\sqlite3.dll","r")
-msgbox api.generateFingerprint(testfile)
-ExitApp
+
 headers := Map("test","cake")
 
 fileObj := FileOpen(A_ScriptDir "\icuuc76.dll","r")
 fileObj := FileOpen(A_ScriptDir "\icutu76.dll","r")
 ; msgbox api.generateFingerprint("1",,&p := "post")
 ; ExitApp
-loop 1
+loop 10000
     api.retrieve("https://www.google.com/search?q=" a_index)
 
-api.exportUncompressedDb(A_ScriptDir "\uncompressed.db",1)
+; api.exportUncompressedDb(A_ScriptDir "\uncompressed.db",1)
 ; api.retrieve("https://www.google.com",,"test",,"PATCH")
 ; msgbox api.web.PrintObj(api.web.GetVersionInfo())
 ; curl.SetOpt("URL","https://www.google.com")
