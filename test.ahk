@@ -9,6 +9,9 @@ optObj["pathToDB"] := A_ScriptDir "\test.db"
 
 api := apiQache(optObj)
 
+api.findRecords(1,,,,"MEOW")
+
+
 testFile := FileOpen(A_ScriptDir "\sqlite3.dll","r")
 
 headers := Map("test","cake")

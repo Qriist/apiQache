@@ -390,18 +390,30 @@
 			return url opts
 		}
 	*/
-	findRecords(urlToMatch := "",  dataToMatch := "", headersToMatch := "", responseHeadersToMatch := "",urlPartialMatch := 0){
+	findRecords(urlToFP?, headersToFP?, postToFP?, mimeToFP?, requestToFP?
+		,urlToMatch?,  dataToMatch?, responseHeadersToMatch?
+		,urlPartialMatch?){
 		;looking for any records which match the parameters
 		;blank parameters will not be considered
 		;url is exact unless urlPartialMatch != 0, others will always look for partial matches
 		;will return a Map object with [fingerprint,url,headers] fields to help prevent memory overflow
+		SQL := 1
+		
+		this.generateFingerprint(IsSet(urlToFP)?urlToFP:""	;method requires url parameter
+			,	IsSet(headersToFP)?headersToFP:unset
+			,	IsSet(postToFP)?postToFP:unset
+			,	IsSet(mimeToFP)?mimeToFP:unset
+			,	IsSet(requestToFP)?requestToFP:unset
+			,,&h := "")	
 
-		SQL := "SELECT fingerprint,url,headers from vRecords WHERE "
-		.	(urlToMatch!=""?(urlPartialMatch=0?"url = " this.sqlQuote(urlToMatch) :"INSTR(url," this.sqlQuote(urlToMatch) ")"):"url IS NOT NULL")	;more complicated logic at url to simplify the next three
-		.	(dataToMatch!=""?" AND INSTR(data," this.sqlQuote(dataToMatch) ")":"")
-		.	(headersToMatch=""?"":" AND INSTR(headers," this.sqlQuote(headersToMatch) ")")	;probably less likely to search headers so the null string is first match
-		.	(responseHeadersToMatch=""?"":" AND INSTR(responseHeaders," this.sqlQuote(responseHeadersToMatch) ")")	;same as above
-		.	";"
+		
+
+		; SQL := "SELECT fingerprint,url,headers from vRecords WHERE "
+		; .	(urlToMatch!=""?(urlPartialMatch=0?"url = " this.sqlQuote(urlToMatch) :"INSTR(url," this.sqlQuote(urlToMatch) ")"):"url IS NOT NULL")	;more complicated logic at url to simplify the next three
+		; .	(dataToMatch!=""?" AND INSTR(data," this.sqlQuote(dataToMatch) ")":"")
+		; .	(headersToMatch=""?"":" AND INSTR(headers," this.sqlQuote(headersToMatch) ")")	;probably less likely to search headers so the null string is first match
+		; .	(responseHeadersToMatch=""?"":" AND INSTR(responseHeaders," this.sqlQuote(responseHeadersToMatch) ")")	;same as above
+		; .	";"
 		; msgbox A_Clipboard := sql
 		table := ""
 		if !this.acDB.gettable(SQL,&table)
@@ -420,7 +432,7 @@
 	; findAndFetchRecords(){	;find and fetch records in one step
 	; 	;TODO
 	; }
-	generateFingerprint(url, headers?, post?, mime?, request?, internal?){
+	generateFingerprint(url, headers?, post?, mime?, request?, internal?, &hashComponents?){
 		;returns a concatonated hash of the outgoing url+headers+post+mime+request
 		;fingerprint character length varies based on the # of set parameters
 		
