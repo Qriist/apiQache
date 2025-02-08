@@ -14,9 +14,7 @@ fileObj := FileOpen(A_ScriptDir "\icuuc76.dll","r")
 fileObj := FileOpen(A_ScriptDir "\icutu76.dll","r")
 ; msgbox api.generateFingerprint("1",,&p := "post")
 ; ExitApp
-; loop 1
-msgbox api.generateFingerprint("1")
-
+loop 1
     api.retrieve("https://www.google.com/search?q=" a_index)
 ; api.retrieve("https://www.google.com",,"test",,"PATCH")
 ; msgbox api.web.PrintObj(api.web.GetVersionInfo())

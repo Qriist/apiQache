@@ -545,14 +545,17 @@ class apiQache {
 		unc := "
 		(
 		CREATE TABLE apiCache (
-			fingerprint       TEXT PRIMARY KEY UNIQUE,
-			url               TEXT,
-			headers           TEXT,
-			responseHeaders   BLOB,
-			responseHeadersSz INTEGER,
+			fingerprint       TEXT    PRIMARY KEY
+									UNIQUE,
 			timestamp         INTEGER,
 			expiry            INTEGER,
-			mode              INTEGER,
+			url               TEXT,
+			headers           TEXT,
+			post              TEXT,
+			mime              TEXT,
+			request           TEXT,
+			responseHeaders   BLOB,
+			responseHeadersSz INTEGER,
 			data              BLOB,
 			dataSz            INTEGER
 		`);
@@ -563,12 +566,10 @@ class apiQache {
 		(
 		CREATE VIEW vRecords AS
 			SELECT fingerprint,
-				url,
-				headers,
-				responseHeaders,
 				timestamp,
 				expiry,
-				data
+				sqlar_uncompress(responseHeaders, responseHeadersSz) AS responseHeaders,
+				sqlar_uncompress(data, dataSz) AS data
 			FROM apiCache;
 		)"
 		uncObj.push(unc)
@@ -577,14 +578,16 @@ class apiQache {
 		(
 		CREATE VIEW vRecords_complete AS
 			SELECT fingerprint,
-				url,
-				headers,
-				responseHeaders,
-				responseHeadersSz,
-				mode,
 				timestamp,
 				expiry,
-				data,
+				url,
+				headers,
+				post,
+				mime,
+				request,
+				sqlar_uncompress(responseHeaders, responseHeadersSz) AS responseHeaders,
+				responseHeadersSz,
+				sqlar_uncompress(data, dataSz) AS data,
 				dataSz
 			FROM apiCache;
 		)"
