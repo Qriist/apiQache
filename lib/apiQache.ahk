@@ -61,6 +61,7 @@
 		;this.acDB.getTable("PRAGMA synchronous;",table)
 		;msgbox % st_printArr(table)
 		;this.acDB.exec("VACUUM;")
+		OnExit (*) => this.CloseDB()
 	}
 	initSchema(){
 		retObj := []

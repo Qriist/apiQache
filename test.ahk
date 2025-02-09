@@ -3,11 +3,11 @@
 #Include %a_scriptdir%/lib/apiQache.ahk
 
 
-optObj := Map()
+; optObj := Map()
 ; optObj["pathToDB"] := A_ScriptDir "\test.db"
 
 
-api := apiQache(optObj)
+api := apiQache()
 
 ; api.retrieve("https://www.google.com",,,,"https://www.google.com")
 ; api.retrieve("https://www.google.com",Map("?a","c"),1)
