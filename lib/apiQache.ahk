@@ -25,8 +25,8 @@
 		;silos the apiQache connections into its own pool
 		this.multi_handle := this.curl.MultiInit()
 		this.easy_handle := this.curl.EasyInit()
-
-		this.initDB(optObj["pathToDB"])
+		
+		this.initDB(optObj["pathToDB"]?)
 		this.initPreparedStatements()
 	}
 
@@ -34,7 +34,8 @@
 		DirCreate(pathToDir)
 		this.acDir := Trim(pathToDir,"\")
 	}
-	initDB(pathToDB,journal_mode := "wal",synchronous := 0){	
+	initDB(pathToDB?,journal_mode := "wal",synchronous := 0){
+		pathToDB ??= A_ScriptDir "\cache\" StrReplace(A_ScriptName,".ahk") ".db"
 		If FileExist(pathToDB){
 			this.acDB :=  SQriLiteDB()
 			if !this.acDB.openDB(pathToDB)
@@ -183,7 +184,7 @@
 			return this.outPostHash := ""
 		;use curl to prepare the post data into a buffer
 		this.curl.SetPost(post,this.easy_handle)
-		this.outPostHash := this.hash(&p := this.curl.easyHandleMap[this.easy_handle]["postData"],"SHA512")
+		; this.outPostHash := this.hash(&p := this.curl.easyHandleMap[this.easy_handle]["postData"],"SHA512")
 	}
 	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?){
 		table := ""

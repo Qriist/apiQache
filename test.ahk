@@ -4,7 +4,7 @@
 
 
 optObj := Map()
-optObj["pathToDB"] := A_ScriptDir "\test.db"
+; optObj["pathToDB"] := A_ScriptDir "\test.db"
 
 
 api := apiQache(optObj)
