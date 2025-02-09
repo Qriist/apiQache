@@ -53,6 +53,7 @@
 				if !this.acDB.exec(v)
 					msgbox("error creating table in new database")
 			}
+			this.acDB.exec("PRAGMA optimize;")
 		}
 		this.acDB.exec("PRAGMA journal_mode=" journal_mode ";")
 		this.acDB.exec("PRAGMA synchronous=" synchronous ";")
