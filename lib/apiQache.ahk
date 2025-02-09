@@ -17,7 +17,8 @@
 		this.bulkRetObj := []
 		this.preparedSQL := Map()
 		this.compiledSQL := Map()
-
+		this.optimizeAfterXInserts := 10000
+		this.optimizeCounter := 0
 		;This instance will connect to any instance the main script has
 		;If you need to set the DLL or SSL then init the LibQurl class prior to apiQache
 		this.curl := LibQurl()
@@ -257,8 +258,15 @@
 		this.compiledSQL["retrieve/server"].Step()
 		this.compiledSQL["retrieve/server"].Reset()
 		this.lastServedSource := "server"
-
+		this.optimize()
 		return response := this.curl.GetLastBody(,this.easy_handle)
+	}
+	optimize(){
+		this.optimizeCounter += 1
+		if (this.optimizeCounter < this.optimizeAfterXInserts)
+			return
+		this.acDB.exec("PRAGMA optimize;")
+		this.optimizeCounter := 0
 	}
 	/*	bulk insert stuff
 			
