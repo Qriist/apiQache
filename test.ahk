@@ -9,10 +9,10 @@ optObj["pathToDB"] := A_ScriptDir "\test.db"
 
 api := apiQache(optObj)
 
-api.retrieve("https://www.google.com",Map("a","c"),"1")
+; api.retrieve("https://www.google.com",,,,"https://www.google.com")
 ; api.retrieve("https://www.google.com",Map("?a","c"),1)
-retobj := api.findRecords(,Map("a","c"),"1")
-api.retrieve("https://www.google.com",Map("a","c"),"1")
+retobj := api.findRecords(,,,,,"999")
+; api.retrieve("https://www.google.com",Map("a","c"),"1")
 msgbox retobj.length
 
 ExitApp

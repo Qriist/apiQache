@@ -1,5 +1,4 @@
 ﻿class apiQache { 
-
 	__New(optObj := Map()){
 		; this.acDB := ""	;api cache DB
 		this.acDir := ""	;api cache dir, used only for bulk downloads
@@ -213,8 +212,6 @@
 			,	(this.outRequestString=""?unset:this.outRequestString)
 			,	1,&h := "")
 
-		msgbox fingerprint "`n`n" h["post"]
-
 		timestamp := expiry_timestamp := A_NowUTC	;makes the timestamp consistent across the method
 		expiry_timestamp := DateAdd(expiry_timestamp, expiry, "seconds")
 		;msgbox timestamp "`n" expiry_timestamp
@@ -393,45 +390,32 @@
 			return url opts
 		}
 	*/
-	findRecords(urlToFP?, headersToFP?, postToFP?, mimeToFP?, requestToFP?
-		,urlToMatch?,  dataToMatch?, responseHeadersToMatch?){
+	findRecords(urlToMatch?, headersToFP?, postToFP?, mimeToFP?, requestToFP?
+		, responseHeadersToMatch?, dataToMatch?){
 		;looking for any records which match the parameters
 		;unset parameters will not be considered
-		;all <xToMatch> parameters look for partial matches
+		;all ToMatch parameters look for partial matches, ToFP parameters are exact
 		;will return a results array of fingerprints
-		If !IsSet(urlToMatch) && IsSet(urlToFP)
-			urlToMatch := urlToFP
-		else if !IsSet(urlToMatch) && !IsSet(urlToFP)
+		If !IsSet(urlToMatch)
 			urlToMatch := ""
 			
-		this.generateFingerprint(IsSet(urlToFP)?urlToFP:""	;method requires url parameter
+		this.generateFingerprint(IsSet(urlToMatch)?urlToMatch:""	;method requires url parameter
 			,	IsSet(headersToFP)?headersToFP:unset
 			,	IsSet(postToFP)?postToFP:unset
 			,	IsSet(mimeToFP)?mimeToFP:unset
 			,	IsSet(requestToFP)?requestToFP:unset
 			,,&h := "")	
 
-		SQL := ""
-		; msgbox this.generateFingerprint(1,headersToFP,,,1) "`n`n" h["headers"]
-
 		SQL := "SELECT fingerprint `nFROM vRecords_Complete `nWHERE `n"
 			.	"INSTR(url," this.sqlQuote(urlToMatch) ")`n"
 			.	(IsSet(headersToFP)?"AND headers = '" h["headers"] "'`n":"")
 			.	(IsSet(postToFP)?"AND post = '" h["post"] "'`n":"")
-			; .	"INSTR(url," this.sqlQuote(urlToMatch) ")`n"
-			; .	"INSTR(url," this.sqlQuote(urlToMatch) ")`n"
+			.	(IsSet(mimeToFP)?"AND mime = '" h["mime"] "'`n":"")
+			.	(IsSet(requestToFP)?"AND request = '" h["request"] "'`n":"")
+			.	(IsSet(responseHeadersToMatch)?"AND INSTR(responseHeaders," this.sqlQuote(responseHeadersToMatch) ")`n":"")
+			.	(IsSet(dataToMatch)?"AND INSTR(data," this.sqlQuote(dataToMatch) ")`n":"")
+			.	";"
 
-
-
-		; SQL := "SELECT fingerprint,url,headers from vRecords WHERE "
-		; .	(urlToMatch!=""?(urlPartialMatch=0?"url = " this.sqlQuote(urlToMatch) :"INSTR(url," this.sqlQuote(urlToMatch) ")"):"url IS NOT NULL")	;more complicated logic at url to simplify the next three
-		; .	(dataToMatch!=""?" AND INSTR(data," this.sqlQuote(dataToMatch) ")":"")
-		; .	(headersToMatch=""?"":" AND INSTR(headers," this.sqlQuote(headersToMatch) ")")	;probably less likely to search headers so the null string is first match
-		; .	(responseHeadersToMatch=""?"":" AND INSTR(responseHeaders," this.sqlQuote(responseHeadersToMatch) ")")	;same as above
-		.	";"
-		msgbox A_Clipboard := sql
-
-		; ExitApp
 		table := ""
 		if !this.acDB.gettable(SQL,&table)
 			msgbox a_clipboard "--Failure in findRecords`n" SQL
@@ -478,7 +462,7 @@
 		; }
 		if IsSetRef(&post)
 			hashComponents["post"] := p := this.hash(&post,"SHA512")
-			
+
 		; IsSetRef(&mime)
 			; this.hashComponents["mime"] := m := 
 		; switch Type(mime) {
