@@ -423,13 +423,27 @@
 		nextObj := Map()
 		loop table.rowCount {
 			table.nextNamed(&nextObj)
-			retObj.push(nextObj)
+			retObj.push(nextObj["fingerprint"])
 		}
 		return retObj
 	}
-	; fetchRecords(recordObj){
-	; 	;accepts a linear array of fingerprints to return any number of rows
-	; }
+	fetchRecords(recordObj){
+		;accepts a linear array of fingerprints to return any number of rows
+		retObj := []
+		for k,v in recordObj {
+			fingerprint := v
+			SQL := "SELECT * FROM vRecords WHERE fingerprint = '" v "' ORDER BY fingerprint ASC;"
+			If !this.acDB.getTable(sql,&table)	;finds data only if it hasn't expired
+				msgbox A_Clipboard := "--failed to fetch records`n" sql
+			
+			; msgbox JSON.Dump(table)
+			If (table.RowCount > 0) {	;RowCount will = 0 if nothing found
+				table.NextNamed(&record)
+				retObj.push(record)
+			}
+		}
+		return retObj
+	}
 	; findAndFetchRecords(){	;find and fetch records in one step
 	; 	;TODO
 	; }
@@ -477,7 +491,7 @@
 
 		If IsSet(internal)
 			this.hashComponents := hashComponents
-		; msgbox hashComponents["url"] "`n`n" hashComponents["headers"] "`n`n" u "`n`n" h
+
 		return u
 			.	(!IsSet(h)?"":"h" h)
 			.	(!IsSet(p)?"":"p" p)
