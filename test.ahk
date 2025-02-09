@@ -9,9 +9,13 @@ optObj["pathToDB"] := A_ScriptDir "\test.db"
 
 api := apiQache(optObj)
 
-api.findRecords(1,,,,"MEOW")
+api.retrieve("https://www.google.com",Map("a","c"),"1")
+; api.retrieve("https://www.google.com",Map("?a","c"),1)
+retobj := api.findRecords(,Map("a","c"),"1")
+api.retrieve("https://www.google.com",Map("a","c"),"1")
+msgbox retobj.length
 
-
+ExitApp
 testFile := FileOpen(A_ScriptDir "\sqlite3.dll","r")
 
 headers := Map("test","cake")

@@ -211,7 +211,10 @@
 			,	(!IsSet(post)?unset:post)
 			,	unset ;mime (this.outHeadersText=""?unset:this.outHeadersText)
 			,	(this.outRequestString=""?unset:this.outRequestString)
-			,	1)
+			,	1,&h := "")
+
+		msgbox fingerprint "`n`n" h["post"]
+
 		timestamp := expiry_timestamp := A_NowUTC	;makes the timestamp consistent across the method
 		expiry_timestamp := DateAdd(expiry_timestamp, expiry, "seconds")
 		;msgbox timestamp "`n" expiry_timestamp
@@ -243,8 +246,8 @@
 				,	2,Map("Int64",timestamp)	;timestamp
 				,	3,Map("Int64",expiry_timestamp)	;expiry
 				,	4,Map("Text",url)	;url
-				,	5,Map((this.outHeadersText=""?"NULL":"Text"),(this.outHeadersText=""?"NULL":this.hashComponents["headers"]))	;headers
-				,	6,Map((this.outPostHash=""?"NULL":"Text"),(this.outPostHash=""?"NULL":this.hashComponents["post"]))	;post
+				,	5,Map((!IsSet(headers)?"NULL":"Text"),(!IsSet(headers)?"NULL":h["headers"]))	;headers
+				,	6,Map((!IsSet(post)?"NULL":"Text"),(!IsSet(post)?"NULL":h["post"]))	;post
 				,	7,Map("NULL","")	;mime
 				,	8,Map((this.outRequestString=""?"NULL":"Text"),(this.outRequestString=""?"NULL":this.hashComponents["request"]))	;request
 				,	9,Map("Text",this.lastResponseHeaders)	;responseHeaders
@@ -391,14 +394,16 @@
 		}
 	*/
 	findRecords(urlToFP?, headersToFP?, postToFP?, mimeToFP?, requestToFP?
-		,urlToMatch?,  dataToMatch?, responseHeadersToMatch?
-		,urlPartialMatch?){
+		,urlToMatch?,  dataToMatch?, responseHeadersToMatch?){
 		;looking for any records which match the parameters
-		;blank parameters will not be considered
-		;url is exact unless urlPartialMatch != 0, others will always look for partial matches
-		;will return a Map object with [fingerprint,url,headers] fields to help prevent memory overflow
-		SQL := 1
-		
+		;unset parameters will not be considered
+		;all <xToMatch> parameters look for partial matches
+		;will return a results array of fingerprints
+		If !IsSet(urlToMatch) && IsSet(urlToFP)
+			urlToMatch := urlToFP
+		else if !IsSet(urlToMatch) && !IsSet(urlToFP)
+			urlToMatch := ""
+			
 		this.generateFingerprint(IsSet(urlToFP)?urlToFP:""	;method requires url parameter
 			,	IsSet(headersToFP)?headersToFP:unset
 			,	IsSet(postToFP)?postToFP:unset
@@ -406,19 +411,31 @@
 			,	IsSet(requestToFP)?requestToFP:unset
 			,,&h := "")	
 
-		
+		SQL := ""
+		; msgbox this.generateFingerprint(1,headersToFP,,,1) "`n`n" h["headers"]
+
+		SQL := "SELECT fingerprint `nFROM vRecords_Complete `nWHERE `n"
+			.	"INSTR(url," this.sqlQuote(urlToMatch) ")`n"
+			.	(IsSet(headersToFP)?"AND headers = '" h["headers"] "'`n":"")
+			.	(IsSet(postToFP)?"AND post = '" h["post"] "'`n":"")
+			; .	"INSTR(url," this.sqlQuote(urlToMatch) ")`n"
+			; .	"INSTR(url," this.sqlQuote(urlToMatch) ")`n"
+
+
 
 		; SQL := "SELECT fingerprint,url,headers from vRecords WHERE "
 		; .	(urlToMatch!=""?(urlPartialMatch=0?"url = " this.sqlQuote(urlToMatch) :"INSTR(url," this.sqlQuote(urlToMatch) ")"):"url IS NOT NULL")	;more complicated logic at url to simplify the next three
 		; .	(dataToMatch!=""?" AND INSTR(data," this.sqlQuote(dataToMatch) ")":"")
 		; .	(headersToMatch=""?"":" AND INSTR(headers," this.sqlQuote(headersToMatch) ")")	;probably less likely to search headers so the null string is first match
 		; .	(responseHeadersToMatch=""?"":" AND INSTR(responseHeaders," this.sqlQuote(responseHeadersToMatch) ")")	;same as above
-		; .	";"
-		; msgbox A_Clipboard := sql
+		.	";"
+		msgbox A_Clipboard := sql
+
+		; ExitApp
 		table := ""
 		if !this.acDB.gettable(SQL,&table)
 			msgbox a_clipboard "--Failure in findRecords`n" SQL
-		retObj := Map()
+		retObj := []
 		nextObj := Map()
 		loop table.rowCount {
 			table.nextNamed(&nextObj)
@@ -440,21 +457,28 @@
 		hashComponents["url"] := u := this.hash(&url,"SHA512")
 
 		;todo - implement type detection
-		If IsSetRef(&headers)
-			hashComponents["headers"] := h := this.hash(&headers,"SHA512")
+		If IsSetRef(&headers){
+			Switch Type(headers){
+				case "Map":
+					outHeadersText := ""
+					for k,v in headers
+						outHeadersText .= k ": " v "`n"
+					hashComponents["headers"] := h := this.hash(&outHeadersText,"SHA512")
+				Default:
+					hashComponents["headers"] := h := this.hash(&headers,"SHA512")
+			}
+		}
+
+			
 		; switch Type(post) {
 		; 	case :
 				
 		; 	default:
 				
 		; }
-		if IsSetRef(&post) {
-			If IsSet(internal)
-				hashComponents["post"] := p := this.curl.easyHandleMap[this.easy_handle]["postData"]
-			else
-				hashComponents["post"] := p := this.hash(&post,"SHA512")
-		}
-
+		if IsSetRef(&post)
+			hashComponents["post"] := p := this.hash(&post,"SHA512")
+			
 		; IsSetRef(&mime)
 			; this.hashComponents["mime"] := m := 
 		; switch Type(mime) {
@@ -469,7 +493,7 @@
 
 		If IsSet(internal)
 			this.hashComponents := hashComponents
-
+		; msgbox hashComponents["url"] "`n`n" hashComponents["headers"] "`n`n" u "`n`n" h
 		return u
 			.	(!IsSet(h)?"":"h" h)
 			.	(!IsSet(p)?"":"p" p)
