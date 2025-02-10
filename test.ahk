@@ -10,10 +10,10 @@
 api := apiQache()
 
 ; api.retrieve("https://www.google.com",,,,"https://www.google.com")
-; api.retrieve("https://www.google.com",Map("?a","c"),1)
+msgbox api.retrieve("https://www.google.com")
 retobj := api.findRecords(,,,,,"999")
 ; api.retrieve("https://www.google.com",Map("a","c"),"1")
-; msgbox JSON.dump(retobj)
+msgbox JSON.dump(api.fetchRecords(retobj))
 ; A_Clipboard := JSON.Dump(api.fetchRecords(retobj))
 ExitApp
 testFile := FileOpen(A_ScriptDir "\sqlite3.dll","r")

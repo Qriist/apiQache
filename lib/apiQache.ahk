@@ -1,12 +1,10 @@
 ﻿class apiQache { 
 	__New(optObj := Map()){
-		; this.acDB := ""	;api cache DB
-		this.acDir := ""	;api cache dir, used only for bulk downloads
 		this.uncDB := ""
 		this.acExpiry := 518400	;api cache expiry
 								;how many seconds to wait before burning api call for fresh file
 								;default = 518400 (6 days)
-		; this.web := WinHttpRequest()
+
 		this.outHeadersText := ""
 		this.outHeadersMap := Map()
 		this.preparedOutHeadersText := ""
@@ -19,6 +17,7 @@
 		this.compiledSQL := Map()
 		this.optimizeAfterXInserts := 10000
 		this.optimizeCounter := 0
+
 		;This instance will connect to any instance the main script has
 		;If you need to set the DLL or SSL then init the LibQurl class prior to apiQache
 		this.curl := LibQurl()
