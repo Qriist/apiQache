@@ -1,4 +1,4 @@
-﻿{
+{
 	"author": {
 		"email": "Qriist+apiQache@gmail.com",
 		"name": "Qriist",
@@ -34,7 +34,7 @@
 	"name": "Qriist/apiQache",
 	"repository": {
 		"type": "github",
-		"url": "Qriist/LibQurl"
+		"url": "Qriist/apiQache"
 	},
-	"version": "0.8.0"
+	"version": "0.81.0"
 }
