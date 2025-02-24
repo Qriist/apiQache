@@ -218,18 +218,15 @@
 		;msgbox timestamp "`n" expiry_timestamp
 
 		If !IsSet(forceBurn){	;skips useless db call if set
-			SQL := "SELECT sqlar_uncompress(data,dataSz) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
-				.	"FROM apiCache "
-				.	"WHERE fingerprint = '" fingerprint "' "
-				.	"AND expiry > " Min(timestamp,expiry_timestamp) ";"	;uses lower number between current and user-set timestamp
-			If !this.acDB.getTable(sql,&table)	;finds data only if it hasn't expired
-				msgbox A_Clipboard := "--expiry check failed under optional burn`n" sql
-			
-			If (table.RowCount > 0) {	;RowCount will = 0 if nothing found
-				table.NextNamed(&chkCache)
-				this.lastResponseHeaders := chkCache["responseHeaders"]
+			selMap := Map(1,Map("Text",fingerprint)
+					,	2,Map("Int64",Min(timestamp,expiry_timestamp)))
+			row := Map()
+			this.compiledSQL["retrieve/cache"].Bind(selMap)
+			this.compiledSQL["retrieve/cache"].Step(&row)
+			this.compiledSQL["retrieve/cache"].Reset()
+			If (row.count > 0) {
 				this.lastServedSource := "cache"
-				return chkCache["data"]	;returns previously cached data
+				return row["data"]
 			}
 		}
 
