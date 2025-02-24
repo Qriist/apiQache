@@ -150,11 +150,16 @@
 			.	"dataSz = excluded.dataSz;"
 
 		
-		this.preparedSQL["retrieve/cache"] := "SELECT sqlar_uncompress(data,dataSz) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
+		this.preparedSQL["retrieve/cache"] := "SELECT CAST(sqlar_uncompress(data,dataSz) AS TEXT) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
 			.	"FROM apiCache "
 			.	"WHERE fingerprint = ? "
 			.	"AND expiry > ?;"
 		
+		this.preparedSQL["retrieve/asset"] := "SELECT sqlar_uncompress(data,dataSz) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
+			.	"FROM apiCache "
+			.	"WHERE fingerprint = ? "
+			.	"AND expiry > ?;"
+
 		this.preparedSQL["invalidateRecord"] := "UPDATE apiCache SET expiry = 0 WHERE fingerprint = ?;"
 		; msgbox "UPDATE simpleCacheTable SET expiry = 0 WHERE fingerprint = '?';"
 		for k,v in this.preparedSQL {
@@ -186,7 +191,7 @@
 		this.curl.SetPost(post,this.easy_handle)
 		; this.outPostHash := this.hash(&p := this.curl.easyHandleMap[this.easy_handle]["postData"],"SHA512")
 	}
-	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?){
+	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, assetMode?){
 		table := ""
 		chkCache := ""
 		expiry ??= this.acExpiry
@@ -200,7 +205,6 @@
 			-if url (fingerprint) AND expiry is good AND fileblob exists -> return fileblob from db
 				?-if file doesn't exist (which it should) -> burn api
 		*/
-
 		this.setHeaders(headers?)
 		this.setRequest(request?)
 		this.setPost(post?)
@@ -217,13 +221,14 @@
 		expiry_timestamp := DateAdd(expiry_timestamp, expiry, "seconds")
 		;msgbox timestamp "`n" expiry_timestamp
 
+		assetOrCache := (!IsSet(assetMode?)?"cache":"asset")
 		If !IsSet(forceBurn){	;skips useless db call if set
 			selMap := Map(1,Map("Text",fingerprint)
 					,	2,Map("Int64",Min(timestamp,expiry_timestamp)))
 			row := Map()
-			this.compiledSQL["retrieve/cache"].Bind(selMap)
-			this.compiledSQL["retrieve/cache"].Step(&row)
-			this.compiledSQL["retrieve/cache"].Reset()
+			this.compiledSQL["retrieve/" assetOrCache].Bind(selMap)
+			this.compiledSQL["retrieve/" assetOrCache].Step(&row)
+			this.compiledSQL["retrieve/" assetOrCache].Reset()
 			If (row.count > 0) {
 				this.lastServedSource := "cache"
 				return row["data"]
@@ -263,6 +268,9 @@
 		this.lastServedSource := "server"
 		this.optimize()
 		return response := this.curl.GetLastBody(,this.easy_handle)
+	}
+	asset(url, headers?, post?, mime?, request?, expiry?, forceBurn?){	;convenience method for assetMode
+		return this.retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, 1)
 	}
 	optimize(){
 		this.optimizeCounter += 1
