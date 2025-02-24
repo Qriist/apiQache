@@ -234,7 +234,7 @@
 		}
 
 		;if set, chill to keep from hammering the server
-		if this.HasOwnProp("interval"){
+		if (this.HasOwnProp("interval") || !this.interval){
 			loop {
 				;do nothing, but don't sleep to maintain responsiveness
 			} until (A_TickCount >= (this.lastRequestTimestamp + this.interval))
