@@ -17,12 +17,14 @@
 		this.compiledSQL := Map()
 		this.optimizeAfterXInserts := 10000
 		this.optimizeCounter := 0
+		this.interval := 0
+		this.lastRequestTimestamp := 0
 
 		;This instance will connect to any instance the main script has
 		;If you need to set the DLL or SSL then init the LibQurl class prior to apiQache
 		this.curl := LibQurl()
 
-		;silos the apiQache connections into its own pool
+		;silos the apiQache connections into their own pool
 		this.multi_handle := this.curl.MultiInit()
 		this.easy_handle := this.curl.EasyInit()
 		
@@ -30,10 +32,6 @@
 		this.initPreparedStatements()
 	}
 
-	initDir(pathToDir){	;don't need anymore?
-		DirCreate(pathToDir)
-		this.acDir := Trim(pathToDir,"\")
-	}
 	initDB(pathToDB?,journal_mode := "wal",synchronous := 0){
 		pathToDB ??= A_ScriptDir "\cache\" StrReplace(A_ScriptName,".ahk") ".db"
 		If FileExist(pathToDB){
@@ -62,7 +60,7 @@
 		;this.acDB.getTable("PRAGMA synchronous;",table)
 		;msgbox % st_printArr(table)
 		;this.acDB.exec("VACUUM;")
-		OnExit (*) => this.CloseDB()
+		OnExit (*) => this._cleanup()
 	}
 	initSchema(){
 		retObj := []
@@ -234,6 +232,15 @@
 				return chkCache["data"]	;returns previously cached data
 			}
 		}
+
+		;if set, chill to keep from hammering the server
+		if this.HasOwnProp("interval"){
+			loop {
+				;do nothing, but don't sleep to maintain responsiveness
+			} until (A_TickCount >= (this.lastRequestTimestamp + this.interval))
+		}
+		this.lastRequestTimestamp := A_TickCount
+
 		
 		this.curl.SetOpt("URL",url,this.easy_handle)
 		this.curl.Sync(this.easy_handle)
@@ -643,6 +650,10 @@
 		;this.acDB.exec("PRAGMA locking_mode = NORMAL;")
 		this.openTransaction := 0
 	}
+			
+	requestInterval(milliseconds := 100){	;governs how often non-cache requests can be made
+		this.interval := milliseconds
+	}
 
 	hash(&item:="", hashType:="", c_size:="", cb:="") { ; default hashType = SHA256 /// default enc = UTF-16
 		Static _hLib:=DllCall("LoadLibrary","Str","bcrypt.dll","UPtr"), LType:="SHA256", LItem:="", LBuf:="", LSize:="", d_LSize:=1024000
@@ -699,5 +710,8 @@
 		}
 		
 		copy_str() => DllCall("NtDll\RtlCopyMemory","UPtr",LBuf.ptr,"UPtr",temp_buf.ptr,"UPtr",LBuf.size)
+	}
+	_cleanup(){
+		this.CloseDB()
 	}
 }

@@ -9,8 +9,8 @@
 
 api := apiQache()
 
-; api.retrieve("https://www.google.com",,,,"https://www.google.com")
-msgbox api.retrieve("https://www.google.com")
+; api.retrieve("https://www.google.com",1,1,1,"https://www.google.com")
+msgbox api.retrieve("https://www.google.com/5t4325432")
 retobj := api.findRecords(,,,,,"999")
 ; api.retrieve("https://www.google.com",Map("a","c"),"1")
 msgbox JSON.dump(api.fetchRecords(retobj))
