@@ -225,9 +225,8 @@
 		If !IsSet(forceBurn){	;skips useless db call if set
 			selMap := Map(1,Map("Text",fingerprint)
 					,	2,Map("Int64",Min(timestamp,expiry_timestamp)))
-			row := Map()
 			this.compiledSQL["retrieve/" assetOrCache].Bind(selMap)
-			this.compiledSQL["retrieve/" assetOrCache].Step(&row)
+			this.compiledSQL["retrieve/" assetOrCache].Step(&row := Map())
 			this.compiledSQL["retrieve/" assetOrCache].Reset()
 			If (row.count > 0) {
 				this.lastServedSource := "cache"
