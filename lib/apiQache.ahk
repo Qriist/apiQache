@@ -19,6 +19,7 @@
 		this.optimizeCounter := 0
 		this.interval := 0
 		this.lastRequestTimestamp := 0
+		this.lastFingerprint := "none"
 
 		;This instance will connect to any instance the main script has
 		;If you need to set the DLL or SSL then init the LibQurl class prior to apiQache
@@ -210,7 +211,7 @@
 		this.setPost(post?)
 		mime := unset	;ensures mime is disabled until I'm ready for it.
 
-		fingerprint := this.generateFingerprint(url
+		this.lastFingerprint := fingerprint := this.generateFingerprint(url
 			,	(this.outHeadersText=""?unset:this.outHeadersText)
 			,	(!IsSet(post)?unset:post)
 			,	unset ;mime (this.outHeadersText=""?unset:this.outHeadersText)
