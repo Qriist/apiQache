@@ -245,10 +245,10 @@
 		
 		this.curl.SetOpt("URL",url,this.easy_handle)
 		this.curl.Sync(this.easy_handle)
-		response := this.curl.GetLastBody(,this.easy_handle)
-
+		response :=	this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
 		this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
 
+		; msgbox (Type(response)!="Buffer"?"Text":"Blob")
 		;Types := {Blob: 1, Double: 1, Int: 1, Int64: 1, Null: 1, Text: 1}
 		insMap := Map(1,Map("Text",fingerprint)	;fingerprint
 				,	2,Map("Int64",timestamp)	;timestamp
@@ -259,14 +259,14 @@
 				,	7,Map("NULL","")	;mime
 				,	8,Map((this.outRequestString=""?"NULL":"Text"),(this.outRequestString=""?"NULL":this.hashComponents["request"]))	;request
 				,	9,Map("Text",this.lastResponseHeaders)	;responseHeaders
-				,	10,Map("Text",response))	;data
+				,	10,Map((Type(response)!="Buffer"?"Text":"Blob"),response))	;data
 		
 		this.compiledSQL["retrieve/server"].Bind(insMap)
 		this.compiledSQL["retrieve/server"].Step()
 		this.compiledSQL["retrieve/server"].Reset()
 		this.lastServedSource := "server"
 		this.optimize()
-		return response := this.curl.GetLastBody(,this.easy_handle)
+		return response := this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
 	}
 	asset(url, headers?, post?, mime?, request?, expiry?, forceBurn?){	;convenience method for assetMode
 		return this.retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, 1)
