@@ -19,7 +19,6 @@
 		this.optimizeCounter := 0
 		this.interval := 0
 		this.lastRequestTimestamp := 0
-		this.lastFingerprint := "none"
 
 		;This instance will connect to any instance the main script has
 		;If you need to set the DLL or SSL then init the LibQurl class prior to apiQache
@@ -192,12 +191,9 @@
 		this.curl.SetPost(post,this.easy_handle)
 		; this.outPostHash := this.hash(&p := this.curl.easyHandleMap[this.easy_handle]["postData"],"SHA512")
 	}
-	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, assetMode?){
-		table := ""
-		chkCache := ""
-		expiry ??= this.acExpiry
+	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, assetMode?, sideload?){
 		/*
-			-check if url+header (fingerprint) exists in db
+			-check if url/etc (fingerprint) exists in db
 			-if url doesn't exist -> burn api
 				
 			-check expiry
@@ -206,6 +202,22 @@
 			-if url (fingerprint) AND expiry is good AND fileblob exists -> return fileblob from db
 				?-if file doesn't exist (which it should) -> burn api
 		*/
+
+		expiry ??= this.acExpiry
+		If IsSet(sideload?) {
+			;accepts a local file into the database as if this particular request had been made
+			;primarily used when the remote offers a bulk download of API data
+			;also used to modify stored data with one-time transformations/optimizations
+			If !IsSet(assetMode?)
+				response := FileOpen(filepath,"r").Read()
+			else {
+				response := Buffer(FileGetSize(filepath))
+				FileOpen(filepath,"r").RawRead(response)
+			}
+			this.lastResponseHeaders := "-200"
+		}
+
+		
 		this.setHeaders(headers?)
 		this.setRequest(request?)
 		this.setPost(post?)
@@ -217,38 +229,42 @@
 			,	unset ;mime (this.outHeadersText=""?unset:this.outHeadersText)
 			,	(this.outRequestString=""?unset:this.outRequestString)
 			,	1,&h := "")
-
+		
 		timestamp := expiry_timestamp := A_NowUTC	;makes the timestamp consistent across the method
 		expiry_timestamp := DateAdd(expiry_timestamp, expiry, "seconds")
 		;msgbox timestamp "`n" expiry_timestamp
 
-		assetOrCache := (!IsSet(assetMode?)?"cache":"asset")
-		If !IsSet(forceBurn){	;skips useless db call if set
-			selMap := Map(1,Map("Text",fingerprint)
-					,	2,Map("Int64",Min(timestamp,expiry_timestamp)))
-			this.compiledSQL["retrieve/" assetOrCache].Bind(selMap)
-			this.compiledSQL["retrieve/" assetOrCache].Step(&row := Map())
-			this.compiledSQL["retrieve/" assetOrCache].Reset()
-			If (row.count > 0) {
-				this.lastServedSource := "cache"
-				return row["data"]
+		;big block to jump past a bunch of checks that would otherwise have to be made
+		if !IsSet(sideload?) {
+			assetOrCache := (!IsSet(assetMode?)?"cache":"asset")
+			If !IsSet(forceBurn){
+				;skips useless db call if set
+				selMap := Map(1,Map("Text",fingerprint)
+						,	2,Map("Int64",Min(timestamp,expiry_timestamp)))
+				this.compiledSQL["retrieve/" assetOrCache].Bind(selMap)
+				this.compiledSQL["retrieve/" assetOrCache].Step(&row := Map())
+				this.compiledSQL["retrieve/" assetOrCache].Reset()
+				If (row.count > 0) {
+					this.lastServedSource := "cache"
+					return row["data"]
+				}
 			}
+
+			;if set, chill to keep from hammering the server
+			if (this.HasOwnProp("interval") || !this.interval){
+				loop {
+					;do nothing, but don't sleep to maintain responsiveness
+				} until (A_TickCount >= (this.lastRequestTimestamp + this.interval))
+			}
+			this.lastRequestTimestamp := A_TickCount
+
+			this.curl.SetOpt("URL",url,this.easy_handle)
+			this.curl.Sync(this.easy_handle)
 		}
 
-		;if set, chill to keep from hammering the server
-		if (this.HasOwnProp("interval") || !this.interval){
-			loop {
-				;do nothing, but don't sleep to maintain responsiveness
-			} until (A_TickCount >= (this.lastRequestTimestamp + this.interval))
-		}
-		this.lastRequestTimestamp := A_TickCount
-
+		response ??= this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
+		this.lastResponseHeaders ??= this.curl.GetLastHeaders(,this.easy_handle)
 		
-		this.curl.SetOpt("URL",url,this.easy_handle)
-		this.curl.Sync(this.easy_handle)
-		response :=	this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
-		this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
-
 		; msgbox (Type(response)!="Buffer"?"Text":"Blob")
 		;Types := {Blob: 1, Double: 1, Int: 1, Int64: 1, Null: 1, Text: 1}
 		insMap := Map(1,Map("Text",fingerprint)	;fingerprint
@@ -265,12 +281,18 @@
 		this.compiledSQL["retrieve/server"].Bind(insMap)
 		this.compiledSQL["retrieve/server"].Step()
 		this.compiledSQL["retrieve/server"].Reset()
-		this.lastServedSource := "server"
 		this.optimize()
-		return response := this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
+
+		If !IsSet(sideload?){
+			this.lastServedSource := "server"
+			return this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
+		} else {
+			this.lastServedSource := "sideload"
+			return response
+		}
 	}
-	asset(url, headers?, post?, mime?, request?, expiry?, forceBurn?){	;convenience method for assetMode
-		return this.retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, 1)
+	asset(url, headers?, post?, mime?, request?, expiry?, forceBurn?, sideload?){	;convenience method for assetMode
+		return this.retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, 1, sideload?)
 	}
 	optimize(){
 		this.optimizeCounter += 1
