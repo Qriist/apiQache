@@ -204,20 +204,6 @@
 		*/
 
 		expiry ??= this.acExpiry
-		If IsSet(sideload?) {
-			;accepts a local file into the database as if this particular request had been made
-			;primarily used when the remote offers a bulk download of API data
-			;also used to modify stored data with one-time transformations/optimizations
-			If !IsSet(assetMode?)
-				response := FileOpen(filepath,"r").Read()
-			else {
-				response := Buffer(FileGetSize(filepath))
-				FileOpen(filepath,"r").RawRead(response)
-			}
-			this.lastResponseHeaders := "-200"
-		}
-
-		
 		this.setHeaders(headers?)
 		this.setRequest(request?)
 		this.setPost(post?)
@@ -237,8 +223,7 @@
 		;big block to jump past a bunch of checks that would otherwise have to be made
 		if !IsSet(sideload?) {
 			assetOrCache := (!IsSet(assetMode?)?"cache":"asset")
-			If !IsSet(forceBurn){
-				;skips useless db call if set
+			If !IsSet(forceBurn){	;skips useless db call if set
 				selMap := Map(1,Map("Text",fingerprint)
 						,	2,Map("Int64",Min(timestamp,expiry_timestamp)))
 				this.compiledSQL["retrieve/" assetOrCache].Bind(selMap)
@@ -260,12 +245,24 @@
 
 			this.curl.SetOpt("URL",url,this.easy_handle)
 			this.curl.Sync(this.easy_handle)
+		
+			response := this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
+			this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
+
+		} else {	;sideload is set
+			;accepts a local file into the database as if this particular request had been made
+			;primarily used when the remote offers a bulk download of API data
+			;also used to modify stored data with one-time transformations/optimizations
+			If !IsSet(assetMode?) {
+				response := FileOpen(filepath,"r").Read()
+			} else {
+				response := Buffer(FileGetSize(filepath))
+				FileOpen(filepath,"r").RawRead(response)
+			}
+			this.lastResponseHeaders := "-200"
 		}
 
-		response ??= this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
-		this.lastResponseHeaders ??= this.curl.GetLastHeaders(,this.easy_handle)
 		
-		; msgbox (Type(response)!="Buffer"?"Text":"Blob")
 		;Types := {Blob: 1, Double: 1, Int: 1, Int64: 1, Null: 1, Text: 1}
 		insMap := Map(1,Map("Text",fingerprint)	;fingerprint
 				,	2,Map("Int64",timestamp)	;timestamp
