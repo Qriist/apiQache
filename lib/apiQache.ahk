@@ -254,10 +254,10 @@
 			;primarily used when the remote offers a bulk download of API data
 			;also used to modify stored data with one-time transformations/optimizations
 			If !IsSet(assetMode?) {
-				response := FileOpen(filepath,"r").Read()
+				response := FileOpen(sideload,"r").Read()
 			} else {
-				response := Buffer(FileGetSize(filepath))
-				FileOpen(filepath,"r").RawRead(response)
+				response := Buffer(FileGetSize(sideload))
+				FileOpen(sideload,"r").RawRead(response)
 			}
 			this.lastResponseHeaders := "-200"
 		}
