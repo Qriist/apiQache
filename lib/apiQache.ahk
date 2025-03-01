@@ -291,6 +291,9 @@
 	asset(url, headers?, post?, mime?, request?, expiry?, forceBurn?, sideload?){	;convenience method for assetMode
 		return this.retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, 1, sideload?)
 	}
+	sideload(url, headers?, post?, mime?, request?, expiry?, assetMode?){	;convenience method for sideloading
+		return this.retrieve(url, headers?, post?, mime?, request?, expiry?, 1, assetMode?, 1)
+	}
 	optimize(){
 		this.optimizeCounter += 1
 		if (this.optimizeCounter < this.optimizeAfterXInserts)
