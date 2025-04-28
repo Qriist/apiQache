@@ -17,14 +17,12 @@
 		this.compiledSQL := Map()
 		this.optimizeAfterXInserts := 10000
 		this.optimizeCounter := 0
-		this.interval := 0
-		this.lastRequestTimestamp := 0
 
 		;This instance will connect to any instance the main script has
 		;If you need to set the DLL or SSL then init the LibQurl class prior to apiQache
 		this.curl := LibQurl()
 
-		;silos the apiQache connections into their own pool
+		;silos the apiQache connections into its own pool
 		this.multi_handle := this.curl.MultiInit()
 		this.easy_handle := this.curl.EasyInit()
 		
@@ -32,6 +30,10 @@
 		this.initPreparedStatements()
 	}
 
+	initDir(pathToDir){	;don't need anymore?
+		DirCreate(pathToDir)
+		this.acDir := Trim(pathToDir,"\")
+	}
 	initDB(pathToDB?,journal_mode := "wal",synchronous := 0){
 		pathToDB ??= A_ScriptDir "\cache\" StrReplace(A_ScriptName,".ahk") ".db"
 		If FileExist(pathToDB){
@@ -60,7 +62,7 @@
 		;this.acDB.getTable("PRAGMA synchronous;",table)
 		;msgbox % st_printArr(table)
 		;this.acDB.exec("VACUUM;")
-		OnExit (*) => this._cleanup()
+		OnExit (*) => this.CloseDB()
 	}
 	initSchema(){
 		retObj := []
@@ -150,16 +152,11 @@
 			.	"dataSz = excluded.dataSz;"
 
 		
-		this.preparedSQL["retrieve/cache"] := "SELECT CAST(sqlar_uncompress(data,dataSz) AS TEXT) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
+		this.preparedSQL["retrieve/cache"] := "SELECT sqlar_uncompress(data,dataSz) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
 			.	"FROM apiCache "
 			.	"WHERE fingerprint = ? "
 			.	"AND expiry > ?;"
 		
-		this.preparedSQL["retrieve/asset"] := "SELECT sqlar_uncompress(data,dataSz) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
-			.	"FROM apiCache "
-			.	"WHERE fingerprint = ? "
-			.	"AND expiry > ?;"
-
 		this.preparedSQL["invalidateRecord"] := "UPDATE apiCache SET expiry = 0 WHERE fingerprint = ?;"
 		; msgbox "UPDATE simpleCacheTable SET expiry = 0 WHERE fingerprint = '?';"
 		for k,v in this.preparedSQL {
@@ -191,9 +188,12 @@
 		this.curl.SetPost(post,this.easy_handle)
 		; this.outPostHash := this.hash(&p := this.curl.easyHandleMap[this.easy_handle]["postData"],"SHA512")
 	}
-	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, assetMode?, sideload?){
+	retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?){
+		table := ""
+		chkCache := ""
+		expiry ??= this.acExpiry
 		/*
-			-check if url/etc (fingerprint) exists in db
+			-check if url+header (fingerprint) exists in db
 			-if url doesn't exist -> burn api
 				
 			-check expiry
@@ -203,66 +203,44 @@
 				?-if file doesn't exist (which it should) -> burn api
 		*/
 
-		expiry ??= this.acExpiry
 		this.setHeaders(headers?)
 		this.setRequest(request?)
 		this.setPost(post?)
 		mime := unset	;ensures mime is disabled until I'm ready for it.
 
-		this.lastFingerprint := fingerprint := this.generateFingerprint(url
+		fingerprint := this.generateFingerprint(url
 			,	(this.outHeadersText=""?unset:this.outHeadersText)
 			,	(!IsSet(post)?unset:post)
 			,	unset ;mime (this.outHeadersText=""?unset:this.outHeadersText)
 			,	(this.outRequestString=""?unset:this.outRequestString)
 			,	1,&h := "")
-		
+
 		timestamp := expiry_timestamp := A_NowUTC	;makes the timestamp consistent across the method
 		expiry_timestamp := DateAdd(expiry_timestamp, expiry, "seconds")
 		;msgbox timestamp "`n" expiry_timestamp
 
-		;big block to jump past a bunch of checks that would otherwise have to be made
-		if !IsSet(sideload?) {
-			assetOrCache := (!IsSet(assetMode?)?"cache":"asset")
-			If !IsSet(forceBurn){	;skips useless db call if set
-				selMap := Map(1,Map("Text",fingerprint)
-						,	2,Map("Int64",Min(timestamp,expiry_timestamp)))
-				this.compiledSQL["retrieve/" assetOrCache].Bind(selMap)
-				this.compiledSQL["retrieve/" assetOrCache].Step(&row := Map())
-				this.compiledSQL["retrieve/" assetOrCache].Reset()
-				If (row.count > 0) {
-					this.lastServedSource := "cache"
-					return row["data"]
-				}
+		If !IsSet(forceBurn){	;skips useless db call if set
+			SQL := "SELECT sqlar_uncompress(data,dataSz) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
+				.	"FROM apiCache "
+				.	"WHERE fingerprint = '" fingerprint "' "
+				.	"AND expiry > " Min(timestamp,expiry_timestamp) ";"	;uses lower number between current and user-set timestamp
+			If !this.acDB.getTable(sql,&table)	;finds data only if it hasn't expired
+				msgbox A_Clipboard := "--expiry check failed under optional burn`n" sql
+			
+			If (table.RowCount > 0) {	;RowCount will = 0 if nothing found
+				table.NextNamed(&chkCache)
+				this.lastResponseHeaders := chkCache["responseHeaders"]
+				this.lastServedSource := "cache"
+				return chkCache["data"]	;returns previously cached data
 			}
-
-			;if set, chill to keep from hammering the server
-			if (this.HasOwnProp("interval") || !this.interval){
-				loop {
-					;do nothing, but don't sleep to maintain responsiveness
-				} until (A_TickCount >= (this.lastRequestTimestamp + this.interval))
-			}
-			this.lastRequestTimestamp := A_TickCount
-
-			this.curl.SetOpt("URL",url,this.easy_handle)
-			this.curl.Sync(this.easy_handle)
-		
-			response := this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
-			this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
-
-		} else {	;sideload is set
-			;accepts a local file into the database as if this particular request had been made
-			;primarily used when the remote offers a bulk download of API data
-			;also used to modify stored data with one-time transformations/optimizations
-			If !IsSet(assetMode?) {
-				response := FileOpen(sideload,"r").Read()
-			} else {
-				response := Buffer(FileGetSize(sideload))
-				FileOpen(sideload,"r").RawRead(response)
-			}
-			this.lastResponseHeaders := "-200"
 		}
-
 		
+		this.curl.SetOpt("URL",url,this.easy_handle)
+		this.curl.Sync(this.easy_handle)
+		response := this.curl.GetLastBody(,this.easy_handle)
+
+		this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
+
 		;Types := {Blob: 1, Double: 1, Int: 1, Int64: 1, Null: 1, Text: 1}
 		insMap := Map(1,Map("Text",fingerprint)	;fingerprint
 				,	2,Map("Int64",timestamp)	;timestamp
@@ -273,26 +251,14 @@
 				,	7,Map("NULL","")	;mime
 				,	8,Map((this.outRequestString=""?"NULL":"Text"),(this.outRequestString=""?"NULL":this.hashComponents["request"]))	;request
 				,	9,Map("Text",this.lastResponseHeaders)	;responseHeaders
-				,	10,Map((Type(response)!="Buffer"?"Text":"Blob"),response))	;data
+				,	10,Map("Text",response))	;data
 		
 		this.compiledSQL["retrieve/server"].Bind(insMap)
 		this.compiledSQL["retrieve/server"].Step()
 		this.compiledSQL["retrieve/server"].Reset()
+		this.lastServedSource := "server"
 		this.optimize()
-
-		If !IsSet(sideload?){
-			this.lastServedSource := "server"
-			return this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
-		} else {
-			this.lastServedSource := "sideload"
-			return response
-		}
-	}
-	asset(url, headers?, post?, mime?, request?, expiry?, forceBurn?, sideload?){	;convenience method for assetMode
-		return this.retrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, 1, sideload?)
-	}
-	sideload(url, headers?, post?, mime?, request?, expiry?, assetMode?){	;convenience method for sideloading
-		return this.retrieve(url, headers?, post?, mime?, request?, expiry?, 1, assetMode?, 1)
+		return response := this.curl.GetLastBody(,this.easy_handle)
 	}
 	optimize(){
 		this.optimizeCounter += 1
@@ -677,10 +643,6 @@
 		;this.acDB.exec("PRAGMA locking_mode = NORMAL;")
 		this.openTransaction := 0
 	}
-			
-	requestInterval(milliseconds := 100){	;governs how often non-cache requests can be made
-		this.interval := milliseconds
-	}
 
 	hash(&item:="", hashType:="", c_size:="", cb:="") { ; default hashType = SHA256 /// default enc = UTF-16
 		Static _hLib:=DllCall("LoadLibrary","Str","bcrypt.dll","UPtr"), LType:="SHA256", LItem:="", LBuf:="", LSize:="", d_LSize:=1024000
@@ -737,8 +699,5 @@
 		}
 		
 		copy_str() => DllCall("NtDll\RtlCopyMemory","UPtr",LBuf.ptr,"UPtr",temp_buf.ptr,"UPtr",LBuf.size)
-	}
-	_cleanup(){
-		this.CloseDB()
 	}
 }
