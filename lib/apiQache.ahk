@@ -17,6 +17,7 @@
 		this.compiledSQL := Map()
 		this.optimizeAfterXInserts := 10000
 		this.optimizeCounter := 0
+		this.deferredOptimize := 0
 		this.interval := 0
 		this.lastRequestTimestamp := 0
 
@@ -298,8 +299,14 @@
 		this.optimizeCounter += 1
 		if (this.optimizeCounter < this.optimizeAfterXInserts)
 			return
+		If (this.openTransaction = 1){
+			this.deferredOptimize := 1
+			return
+		}
+
 		this.acDB.exec("PRAGMA optimize;")
 		this.optimizeCounter := 0
+		this.deferredOptimize := 0
 	}
 	/*	bulk insert stuff
 			
@@ -676,6 +683,8 @@
 		this.acDB.exec("COMMIT;")
 		;this.acDB.exec("PRAGMA locking_mode = NORMAL;")
 		this.openTransaction := 0
+		If (this.deferredOptimize = 1)
+			this.optimize()
 	}
 			
 	requestInterval(milliseconds := 100){	;governs how often non-cache requests can be made
