@@ -12,8 +12,9 @@
 		"Qriist/LibQurl": "^v0.94.0",
 		"Qriist/Null": "github:Qriist/Null@^v1.0.0 --main Null.ahk",
 		"Qriist/SQriLiteDB": "github:Qriist/SQriLiteDB@^v0.81.0 --main SQriLiteDB.ahk",
-		"Qriist/SqlarMultipleCiphers": "github:Qriist/SqlarMultipleCiphers@^v2.0.2+SqlarMultipleCiphers.ICU.7z --main ",
-		"SKAN/RunCMD": "9a8392d"
+		"Qriist/SqlarMultipleCiphers": "github:Qriist/SqlarMultipleCiphers@^v2.0.2+SqlarMultipleCiphers*ICU.7z --main ",
+		"Qriist/libmagic": "github:Qriist/libmagic@^v0.80.0 --main Lib\\libmagic.ahk",
+		"SKAN/RunCMD": "aadeb56"
 	},
 	"description": "An API caching library designed to automatically retain and serve non-expired local copies of outgoing requests.",
 	"keywords": [

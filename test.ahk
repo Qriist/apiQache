@@ -5,12 +5,20 @@
 
 ; optObj := Map()
 ; optObj["pathToDB"] := A_ScriptDir "\test.db"
+try FileDelete(A_ScriptDir "\cache\test.db")
 
-
-api := apiQache()
-
+optObj := Map()
+; optObj["magicFlushThreshold"] := 10000
+api := apiQache(optObj)
 ; api.retrieve("https://www.google.com",1,1,1,"https://www.google.com")
-msgbox api.retrieve("https://www.google.com/5t4325432")
+;msgbox 
+url := "https://www.google.com/5t4325432"
+url := "https://database.lichess.org/standard/lichess_db_standard_rated_2013-12.pgn.zst"
+url := "https://the-fab-cube.github.io/flesh-and-blood-cards/json/english/set.json"
+
+MsgBox api.retrieve(url)
+msgbox api.lastServedSource
+ExitApp
 retobj := api.findRecords(,,,,,"999")
 ; api.retrieve("https://www.google.com",Map("a","c"),"1")
 msgbox JSON.dump(api.fetchRecords(retobj))

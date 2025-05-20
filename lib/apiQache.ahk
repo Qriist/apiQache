@@ -20,6 +20,10 @@
 		this.deferredOptimize := 0
 		this.interval := 0
 		this.lastRequestTimestamp := 0
+		this.serverResponseNotSavedInDB := 0
+		try this.magicFlushThreshold := optObj["magicFlushThreshold"]
+		this.magicFlushThreshold ??= (1024 ** 2 * 50)	;50mb, matching LibQurl's default
+		this.SQLITE_MAX_LENGTH := (1024 ** 2 * 950)	;950mb, a little under SqlarMultipleCipher's max row size
 
 		;This instance will connect to any instance the main script has
 		;If you need to set the DLL or SSL then init the LibQurl class prior to apiQache
@@ -28,7 +32,8 @@
 		;silos the apiQache connections into their own pool
 		this.multi_handle := this.curl.MultiInit()
 		this.easy_handle := this.curl.EasyInit()
-		
+		this.curl.WriteToMagic(this.magicFlushThreshold,this.easy_handle)
+
 		this.initDB(optObj["pathToDB"]?)
 		this.initPreparedStatements()
 	}
@@ -246,8 +251,9 @@
 
 			this.curl.SetOpt("URL",url,this.easy_handle)
 			this.curl.Sync(this.easy_handle)
-		
-			response := this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
+			
+			response := this.curl.GetLastBody((!IsSet(assetMode)?unset:"Object"),this.easy_handle)
+
 			this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
 
 		} else {	;sideload is set
@@ -263,8 +269,25 @@
 			this.lastResponseHeaders := "-200"
 		}
 
-		
-		;Types := {Blob: 1, Double: 1, Int: 1, Int64: 1, Null: 1, Text: 1}
+		;validate that a Magic-File response isn't too large for the db
+		oversized := ""
+		If (Type(response) = "File"){
+			oversizedObj := Map()
+			oversizedObj["path"] := this.curl._GetFilePathFromFileObject(response)
+			oversizedObj["size"] := FileGetSize(oversizedObj["path"])
+			msgbox oversizedObj["size"]
+			If (oversizedObj["size"] > this.SQLITE_MAX_LENGTH) {
+				oversized := "/oversized"
+				oversizedObj["hash"] := this.hash(&h := oversizedObj["path"])
+				response := JSON.Dump(oversizedObj)
+			} else {
+				retResponse := Buffer(oversizedObj["size"])
+				response.RawRead(retResponse)
+				response := retResponse
+			}
+		}
+
+		;Types := Blob, Double, Int, Int64, Null, Text
 		insMap := Map(1,Map("Text",fingerprint)	;fingerprint
 				,	2,Map("Int64",timestamp)	;timestamp
 				,	3,Map("Int64",expiry_timestamp)	;expiry
@@ -282,8 +305,8 @@
 		this.optimize()
 
 		If !IsSet(sideload?){
-			this.lastServedSource := "server"
-			return this.curl.GetLastBody((!IsSet(assetMode)?unset:"Buffer"),this.easy_handle)
+			this.lastServedSource := "server" oversized
+			return this.curl.GetLastBody((!IsSet(assetMode)?unset:"Object"),this.easy_handle)
 		} else {
 			this.lastServedSource := "sideload"
 			return response
