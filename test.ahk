@@ -2,7 +2,6 @@
 #Include <Aris/packages>
 #Include %a_scriptdir%/lib/apiQache.ahk
 
-
 ; optObj := Map()
 ; optObj["pathToDB"] := A_ScriptDir "\test.db"
 try FileDelete(A_ScriptDir "\cache\test.db")
@@ -13,11 +12,16 @@ api := apiQache(optObj)
 ; api.retrieve("https://www.google.com",1,1,1,"https://www.google.com")
 ;msgbox 
 url := "https://www.google.com/5t4325432"
-url := "https://database.lichess.org/standard/lichess_db_standard_rated_2013-12.pgn.zst"
+; url := "https://database.lichess.org/standard/lichess_db_standard_rated_2013-12.pgn.zst"
 url := "https://the-fab-cube.github.io/flesh-and-blood-cards/json/english/set.json"
 
+msgbox api.curl.PrintObj(api.curl.easyHandleMap[api.easy_handle])
 MsgBox api.retrieve(url)
-msgbox api.lastServedSource
+msgbox api.curl.PrintObj(api.curl.easyHandleMap[api.easy_handle])
+
+; msgbox api.curl.GetLastStatus(api.easy_handle) "`n" "AQ: " api.curl.easyHandleMap[api.easy_handle]["statusCode"]
+; msgbox api.curl.PrintObj(api.curl.easyHandleMap)
+; msgbox api.lastStatus
 ExitApp
 retobj := api.findRecords(,,,,,"999")
 ; api.retrieve("https://www.google.com",Map("a","c"),"1")

@@ -86,6 +86,7 @@
 			request           TEXT,
 
 			--results
+			statusCode	      INTEGER,
 			responseHeaders   BLOB,
 			responseHeadersSz INTEGER,
 			data              BLOB,
@@ -108,6 +109,7 @@
 			SELECT fingerprint,
 				timestamp,
 				expiry,
+				statusCode,
 				sqlar_uncompress(responseHeaders, responseHeadersSz) AS responseHeaders,
 				sqlar_uncompress(data, dataSz) AS data
 			FROM apiQache;
@@ -125,6 +127,7 @@
 				post,
 				mime,
 				request,
+				statusCode,
 				sqlar_uncompress(responseHeaders, responseHeadersSz) AS responseHeaders,
 				responseHeadersSz,
 				sqlar_uncompress(data, dataSz) AS data,
@@ -139,8 +142,8 @@
 		this.acExpiry := expiry
 	}
 	initPreparedStatements(){
-		this.preparedSQL["retrieve/server"] := "INSERT OR IGNORE INTO apiQache (fingerprint,timestamp,expiry,url,headers,post,mime,request,responseHeaders,responseHeadersSz,data,dataSz) "
-			.	"VALUES (?1,?2,?3,?4,?5,?6,?7,?8,sqlar_compress(CAST(?9 AS BLOB)),LENGTH(CAST(?9 AS BLOB)),sqlar_compress(CAST(?10 AS BLOB)),LENGTH(CAST(?10 AS BLOB))) "
+		this.preparedSQL["retrieve/server"] := "INSERT OR IGNORE INTO apiQache (fingerprint,timestamp,expiry,url,headers,post,mime,request,statusCode,responseHeaders,responseHeadersSz,data,dataSz) "
+			.	"VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,sqlar_compress(CAST(?10 AS BLOB)),LENGTH(CAST(?10 AS BLOB)),sqlar_compress(CAST(?11 AS BLOB)),LENGTH(CAST(?11 AS BLOB))) "
 			.	"ON CONFLICT ( fingerprint ) "
 			.	"DO UPDATE SET "
 			.	"timestamp = excluded.timestamp,"
@@ -150,18 +153,19 @@
 			.	"post = excluded.post,"
 			.	"mime = excluded.mime,"
 			.	"request = excluded.request,"
+			.	"statusCode = excluded.statusCode,"
 			.	"responseHeaders = excluded.responseHeaders,"
 			.	"responseHeadersSz = excluded.responseHeadersSz,"
 			.	"data = excluded.data,"
 			.	"dataSz = excluded.dataSz;"
 
 		
-		this.preparedSQL["retrieve/cache"] := "SELECT CAST(sqlar_uncompress(data,dataSz) AS TEXT) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
+		this.preparedSQL["retrieve/cache"] := "SELECT CAST(sqlar_uncompress(data,dataSz) AS TEXT) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders, statusCode "
 			.	"FROM apiQache "
 			.	"WHERE fingerprint = ? "
 			.	"AND expiry > ?;"
 		
-		this.preparedSQL["retrieve/asset"] := "SELECT sqlar_uncompress(data,dataSz) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
+		this.preparedSQL["retrieve/asset"] := "SELECT sqlar_uncompress(data,dataSz) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders, statusCode "
 			.	"FROM apiQache "
 			.	"WHERE fingerprint = ? "
 			.	"AND expiry > ?;"
@@ -225,7 +229,6 @@
 		timestamp := expiry_timestamp := A_NowUTC	;makes the timestamp consistent across the method
 		expiry_timestamp := DateAdd(expiry_timestamp, expiry, "seconds")
 		;msgbox timestamp "`n" expiry_timestamp
-
 		;big block to jump past a bunch of checks that would otherwise have to be made
 		if !IsSet(sideload?) {
 			assetOrCache := (!IsSet(assetMode?)?"cache":"asset")
@@ -253,10 +256,8 @@
 			this.curl.Sync(this.easy_handle)
 			
 			response := this.curl.GetLastBody((!IsSet(assetMode)?unset:"Object"),this.easy_handle)
-
+			this.lastStatusCode := this.curl.GetLastStatus(this.easy_handle)
 			this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
-			this.hashComponents["request"]
-
 		} else {	;sideload is set
 			;accepts a local file into the database as if this particular request had been made
 			;primarily used when the remote offers a bulk download of API data
@@ -267,7 +268,7 @@
 				response := Buffer(FileGetSize(sideload))
 				FileOpen(sideload,"r").RawRead(response)
 			}
-			this.hashComponents["request"] := "-200"
+			this.lastStatusCode := "-200"
 		}
 
 		;validate that a Magic-File response isn't too large for the db
@@ -296,9 +297,10 @@
 				,	5,Map((!IsSet(headers)?"NULL":"Text"),(!IsSet(headers)?"NULL":h["headers"]))	;headers
 				,	6,Map((!IsSet(post)?"NULL":"Text"),(!IsSet(post)?"NULL":h["post"]))	;post
 				,	7,Map("NULL","")	;mime
-				,	8,Map((this.outRequestString=""?"NULL":"Text"),(this.outRequestString=""?"NULL":this.hashComponents["request"]))	;request
-				,	9,Map("Text",this.lastResponseHeaders)	;responseHeaders
-				,	10,Map((Type(response)!="Buffer"?"Text":"Blob"),response))	;data
+				,	8,Map((this.outRequestString=""?"NULL":"Text"),(this.outRequestString=""?"NULL":this.outRequestString))	;request
+				,	9,Map("Int64",this.lastStatusCode)	;statusCode
+				,	10,Map("Text",this.lastResponseHeaders)	;responseHeaders
+				,	11,Map((Type(response)!="Buffer"?"Text":"Blob"),response))	;data
 		
 		this.compiledSQL["retrieve/server"].Bind(insMap)
 		this.compiledSQL["retrieve/server"].Step()
