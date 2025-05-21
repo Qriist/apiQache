@@ -266,7 +266,7 @@
 				response := Buffer(FileGetSize(sideload))
 				FileOpen(sideload,"r").RawRead(response)
 			}
-			this.lastResponseHeaders := "-200"
+			this.hashComponents["request"] := "-200"
 		}
 
 		;validate that a Magic-File response isn't too large for the db
