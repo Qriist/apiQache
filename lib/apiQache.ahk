@@ -72,7 +72,7 @@
 		retObj := []
 		ret := "
 		(
-		CREATE TABLE apiCache (
+		CREATE TABLE apiQache (
 			--overhead
 			fingerprint       TEXT PRIMARY KEY UNIQUE,
 			timestamp         INTEGER,
@@ -96,7 +96,7 @@
 		
 		ret := "
 		(
-		CREATE INDEX fingerprint ON apiCache (
+		CREATE INDEX fingerprint ON apiQache (
     		fingerprint ASC
 		`);
 		)"
@@ -110,7 +110,7 @@
 				expiry,
 				sqlar_uncompress(responseHeaders, responseHeadersSz) AS responseHeaders,
 				sqlar_uncompress(data, dataSz) AS data
-			FROM apiCache;
+			FROM apiQache;
 		)"
 		retObj.push(ret)
 		
@@ -129,7 +129,7 @@
 				responseHeadersSz,
 				sqlar_uncompress(data, dataSz) AS data,
 				dataSz
-			FROM apiCache;
+			FROM apiQache;
 		)"
 		retObj.push(ret)
 		
@@ -139,7 +139,7 @@
 		this.acExpiry := expiry
 	}
 	initPreparedStatements(){
-		this.preparedSQL["retrieve/server"] := "INSERT OR IGNORE INTO apiCache (fingerprint,timestamp,expiry,url,headers,post,mime,request,responseHeaders,responseHeadersSz,data,dataSz) "
+		this.preparedSQL["retrieve/server"] := "INSERT OR IGNORE INTO apiQache (fingerprint,timestamp,expiry,url,headers,post,mime,request,responseHeaders,responseHeadersSz,data,dataSz) "
 			.	"VALUES (?1,?2,?3,?4,?5,?6,?7,?8,sqlar_compress(CAST(?9 AS BLOB)),LENGTH(CAST(?9 AS BLOB)),sqlar_compress(CAST(?10 AS BLOB)),LENGTH(CAST(?10 AS BLOB))) "
 			.	"ON CONFLICT ( fingerprint ) "
 			.	"DO UPDATE SET "
@@ -157,16 +157,16 @@
 
 		
 		this.preparedSQL["retrieve/cache"] := "SELECT CAST(sqlar_uncompress(data,dataSz) AS TEXT) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
-			.	"FROM apiCache "
+			.	"FROM apiQache "
 			.	"WHERE fingerprint = ? "
 			.	"AND expiry > ?;"
 		
 		this.preparedSQL["retrieve/asset"] := "SELECT sqlar_uncompress(data,dataSz) AS data, sqlar_uncompress(responseHeaders,responseHeadersSz) AS responseHeaders "
-			.	"FROM apiCache "
+			.	"FROM apiQache "
 			.	"WHERE fingerprint = ? "
 			.	"AND expiry > ?;"
 
-		this.preparedSQL["invalidateRecord"] := "UPDATE apiCache SET expiry = 0 WHERE fingerprint = ?;"
+		this.preparedSQL["invalidateRecord"] := "UPDATE apiQache SET expiry = 0 WHERE fingerprint = ?;"
 		; msgbox "UPDATE simpleCacheTable SET expiry = 0 WHERE fingerprint = '?';"
 		for k,v in this.preparedSQL {
 			st := ""
@@ -255,6 +255,7 @@
 			response := this.curl.GetLastBody((!IsSet(assetMode)?unset:"Object"),this.easy_handle)
 
 			this.lastResponseHeaders := this.curl.GetLastHeaders(,this.easy_handle)
+			this.hashComponents["request"]
 
 		} else {	;sideload is set
 			;accepts a local file into the database as if this particular request had been made
@@ -611,7 +612,7 @@
 	nuke(reallyNuke := 0){	;you didn't really like this db, did you?
 		if (reallyNuke != 1)
 			return
-		this.acDB.exec("DELETE FROM apiCache;")
+		this.acDB.exec("DELETE FROM apiQache;")
 	}
 	CloseDB(){
 		this.acDB.exec("PRAGMA optimize;")
@@ -630,7 +631,7 @@
 		uncObj := []
 		unc := "
 		(
-		CREATE TABLE apiCache (
+		CREATE TABLE apiQache (
 			fingerprint       TEXT    PRIMARY KEY
 									  UNIQUE,
 			timestamp         INTEGER,
@@ -656,7 +657,7 @@
 				expiry,
 				sqlar_uncompress(responseHeaders, responseHeadersSz) AS responseHeaders,
 				sqlar_uncompress(data, dataSz) AS data
-			FROM apiCache;
+			FROM apiQache;
 		)"
 		uncObj.push(unc)
 		
@@ -675,7 +676,7 @@
 				responseHeadersSz,
 				sqlar_uncompress(data, dataSz) AS data,
 				dataSz
-			FROM apiCache;
+			FROM apiQache;
 		)"
 		uncObj.push(unc)
 		if (overwrite!=0)
@@ -689,7 +690,7 @@
 		this.uncDB.CloseDB()
 		
 		this.acDB.AttachDB(pathToUncompressedDB, "unc")
-		SQL := "INSERT OR IGNORE INTO unc.apiCache SELECT * FROM main.vRecords_Complete;"
+		SQL := "INSERT OR IGNORE INTO unc.apiQache SELECT * FROM main.vRecords_Complete;"
 		this.acDB.exec(SQL)
 		this.acDB.DetachDB("unc")
 	}
