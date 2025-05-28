@@ -262,11 +262,13 @@
 			;accepts a local file into the database as if this particular request had been made
 			;primarily used when the remote offers a bulk download of API data
 			;also used to modify stored data with one-time transformations/optimizations
-			If !IsSet(assetMode?) {
-				response := FileOpen(sideload,"r").Read()
-			} else {
-				response := Buffer(FileGetSize(sideload))
-				FileOpen(sideload,"r").RawRead(response)
+			If !(Type(sideload) = "Buffer"){
+				If !IsSet(assetMode?) {
+					response := FileOpen(sideload,"r").Read()
+				} else {
+					response := Buffer(FileGetSize(sideload))
+					FileOpen(sideload,"r").RawRead(response)
+				}
 			}
 			this.lastStatusCode := "-200"
 		}
