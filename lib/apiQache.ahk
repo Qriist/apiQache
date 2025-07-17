@@ -1,4 +1,5 @@
-﻿class apiQache { 
+﻿#Include <Aris\Qriist\LibQurl>
+class apiQache { 
 	__New(optObj := Map()){
 		this.uncDB := ""
 		this.acExpiry := 518400	;api cache expiry
@@ -178,25 +179,31 @@
 			this.compiledSQL[k] := st
 		}
 	}
-	setHeaders(headersMap?){
+	setHeaders(headersMap?,easy_handle?){
+		easy_handle ??= this.easy_handle
 		if !IsSet(headersMap)
+		&& !IsSet(easy_handle)	;only return on non-bulk
 			return this.outHeadersText := ""
-		this.outHeadersMap := headersMap
-		this.curl.SetHeaders(headersMap,this.easy_handle)
+		this.outHeadersMap := headersMap ??= Map()
+		this.curl.SetHeaders(headersMap,easy_handle)
 		this.outHeadersText := ""
 		for k,v in headersMap {
 			this.outHeadersText .= k ": " v "`n"
 		}
 	}
-	setRequest(requestString?){
-		if !IsSet(requestString) || (requestString = "GET")
+	setRequest(requestString?,easy_handle?){
+		if (!IsSet(requestString) || (requestString = "GET"))
+		&& !IsSet(easy_handle)	;only return on non-bulk
 			return this.outRequestString := ""
-		this.curl.SetOpt("CUSTOMREQUEST",requestString,this.easy_handle)
+		easy_handle ??= this.easy_handle
+		this.curl.SetOpt("CUSTOMREQUEST",requestString,easy_handle)
 		this.outRequestString := requestString
 	}
-	setPost(post?){
+	setPost(post?,easy_handle?){
 		If !IsSet(post)
+		&& !IsSet(easy_handle)	;only return on non-bulk
 			return this.outPostHash := ""
+		easy_handle ??= this.easy_handle
 		;use curl to prepare the post data into a buffer
 		this.curl.SetPost(post,this.easy_handle)
 		; this.outPostHash := this.hash(&p := this.curl.easyHandleMap[this.easy_handle]["postData"],"SHA512")
@@ -336,20 +343,73 @@
 		this.optimizeCounter := 0
 		this.deferredOptimize := 0
 	}
+
+	buildBulkRetrieve(url, headers?, post?, mime?, request?, expiry?, forceBurn?, assetMode?){
+		;queues one fingerprint for .bulkRetrieve()
+		
+		fingerprintObj := Map()
+		fingerprintObj["url"] := url
+		fingerprintObj["headers"] := (!IsSet(headers)?unset:headers)
+		fingerprintObj["post"] := (!IsSet(post)?unset:post)
+		fingerprintObj["mime"] := unset ;(!IsSet(mime)?unset:mime)
+		fingerprintObj["request"] := (!IsSet(request)?unset:request)
+		fingerprintObj["expiry"] := expiry ??= this.acExpiry
+		fingerprintObj["forceBurn"] := (!IsSet(forceBurn)?unset:forceBurn)
+		fingerprintObj["assetMode"] := (!IsSet(assetMode)?unset:assetMode)
+
+		this.bulkRetObj.push(fingerprintObj)
+	}
+
+	bulkRetrieve(maxConcurrentDownloads := 5){
+		stateObj := Map()
+		handleObj := []
+		loop Min(this.bulkRetObj.length,maxConcurrentDownloads) {	;spawn the easy_handles
+			worker := this.curl.EasyInit()
+			stateObj[worker] := "waiting"
+			handleObj.Push(worker)
+			; this.curl.AddEasyToMulti(worker,this.multi_handle)
+		}
+
+		loop {
+			for easy_handle,state in stateObj {
+				switch state {
+					case "working":
+						continue
+					case "waiting":
+						if (this.bulkRetObj.Length = 0)
+							continue
+						fpObj := this.bulkRetObj[1]
+						this.bulkRetObj.RemoveAt(1)
+						
+						
+						this.curl.SetOpt("URL",fpObj["url"])
+						this.curl.SetHeaders(fpObj["headers"] ??= Map(),easy_handle)
+						this.curl.SetOpt("CUSTOMREQUEST",fpObj["request"] ??= "GET",easy_handle)
+
+						If fpObj.Has("post")
+							this.curl.SetPost(fpObj["post"],easy_handle)
+						else
+							this.curl.ClearPost(easy_handle)
+						
+						
+						; fpObj["mime"] := unset	;ensures mime is disabled until I'm ready for it.
+
+						fpObj["expiry"] ??= this.acExpiry
+						
+						
+					case "complete":
+						continue
+
+				}
+			}
+		} until (stateObj.count = 0)
+	}
+
+
 	/*	bulk insert stuff
 			
 		
-		buildBulkRetrieve(url,headers := "",expiry := "",forceBurn := 0){
-		;queues one fingerprint for .bulkRetrieve()
-			if (expiry = "")
-				expiry := this.acExpiry
-			
-			fingerprintObj := {"url":url,"forceBurn":forceBurn,"expiry":expiry,"options":{"headers":headers,"gid":format("{1:016X}",this.bulkRetObj.count()+1),"dir":this.acDir,"out":this.generateFingerprint(url,headers)}}
-			this.bulkRetObj.push(fingerprintObj)
-		}
 		bulkRetrieve(maxConcurrentDownloads := 5, urlObj := ""){
-			if (urlObj = "")
-				urlObj := this.bulkRetObj
 		;msgbox % st_printArr(urlObj)
 			cuidFingerprintMap := []
 			mapIndex := 0

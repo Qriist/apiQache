@@ -15,9 +15,13 @@ url := "https://www.google.com/5t4325432"
 ; url := "https://database.lichess.org/standard/lichess_db_standard_rated_2013-12.pgn.zst"
 url := "https://the-fab-cube.github.io/flesh-and-blood-cards/json/english/set.json"
 
-msgbox api.curl.PrintObj(api.curl.easyHandleMap[api.easy_handle])
-MsgBox api.retrieve(url)
-msgbox api.curl.PrintObj(api.curl.easyHandleMap[api.easy_handle])
+
+api.buildBulkRetrieve(url)
+api.bulkRetrieve()
+; msgbox
+; msgbox api.curl.PrintObj(api.curl.easyHandleMap[api.easy_handle])
+; MsgBox api.retrieve(url)
+; msgbox api.curl.PrintObj(api.curl.easyHandleMap[api.easy_handle])
 
 ; msgbox api.curl.GetLastStatus(api.easy_handle) "`n" "AQ: " api.curl.easyHandleMap[api.easy_handle]["statusCode"]
 ; msgbox api.curl.PrintObj(api.curl.easyHandleMap)
